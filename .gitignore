@@ -1,0 +1,30 @@
+# Python runtime artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Editors and operating systems
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Runtime output and local QC data
+*.log
+logs/
+*.csv
+*.tsv
+
+# Release archives and historical local copies
+*.zip
+历史版本/
+图形序列查看器_v3.5/
+
