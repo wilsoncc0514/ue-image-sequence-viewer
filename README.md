@@ -59,5 +59,16 @@ python3 -m unittest discover -s tests -v
 
 ## 许可证
 
-本项目目前未以开源许可证授权。未经版权所有者明确书面许可，不得复制、修改、分发或用于商业用途，详见 [LICENSE](LICENSE)。
+本项目采用 [PolyForm Noncommercial License 1.0.0](LICENSE)：
 
+- 允许为非商业目的使用、复制、修改和分发本软件。
+- 分发原版或修改版时，必须同时保留许可证及版权声明。
+- 不允许任何预期商业应用；商业使用必须事先取得版权所有者的书面授权。
+
+由于包含非商业限制，本项目属于“源码公开（source-available）”，而不是 OSI 定义下的开源软件。
+
+Copyright 2026 wilsoncc0514.
+
+### License summary (English)
+
+Licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE). You may use, copy, modify, and distribute this software for noncommercial purposes. Commercial use requires prior written permission from the copyright holder. The license file and required copyright notice must be preserved when redistributing original or modified copies.
