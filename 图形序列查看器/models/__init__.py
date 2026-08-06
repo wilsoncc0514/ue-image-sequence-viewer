@@ -1,0 +1,1 @@
+"""Application data definitions package."""

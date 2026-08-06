@@ -25,6 +25,6 @@ logs/
 
 # Release archives and historical local copies
 *.zip
+*.sha256
 历史版本/
 图形序列查看器_v3.5/
-
