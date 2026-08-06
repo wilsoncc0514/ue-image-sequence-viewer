@@ -98,6 +98,18 @@ class UIConfig:
     card_padding_x: int = 10
     card_padding_y: int = 8
     status_columns: int = 2
+    motion_fast_ms: int = 120
+    motion_standard_ms: int = 180
+    motion_emphasis_ms: int = 240
+    motion_frame_interval_ms: int = 16
+    feedback_hold_ms: int = 1200
+    reduce_motion: bool = False
+
+    def __post_init__(self) -> None:
+        if min(self.motion_fast_ms, self.motion_standard_ms, self.motion_emphasis_ms, self.feedback_hold_ms) < 0:
+            raise ValueError("动效和反馈时长不能为负数")
+        if self.motion_frame_interval_ms <= 0:
+            raise ValueError("动效帧间隔必须为正数")
 
 
 @dataclass(frozen=True)

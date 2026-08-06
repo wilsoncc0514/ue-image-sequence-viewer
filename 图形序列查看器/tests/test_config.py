@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import unittest
 
-from config.settings import AppConfig, PerformanceConfig, SafetyConfig
+from config.settings import AppConfig, PerformanceConfig, SafetyConfig, UIConfig
 
 
 class PerformanceConfigTests(unittest.TestCase):
@@ -25,5 +25,13 @@ class PerformanceConfigTests(unittest.TestCase):
     def test_invalid_safety_limit_is_rejected(self) -> None:
         with self.assertRaises(ValueError):
             SafetyConfig(max_csv_bytes=0)
+
+    def test_invalid_motion_frame_interval_is_rejected(self) -> None:
+        with self.assertRaises(ValueError):
+            UIConfig(motion_frame_interval_ms=0)
+
+    def test_negative_motion_duration_is_rejected(self) -> None:
+        with self.assertRaises(ValueError):
+            UIConfig(motion_standard_ms=-1)
 if __name__ == '__main__':
     unittest.main()

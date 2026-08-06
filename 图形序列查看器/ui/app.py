@@ -22,6 +22,7 @@ from utils.logger import logger
 from ui.dialogs import CustomQCDialog
 from ui.export_status import get_export_presentation
 from ui.layout import build_main_ui
+from ui.motion import MotionManager
 from ui.styles import STYLE, apply_ttk_style
 
 
@@ -147,6 +148,15 @@ class FrameScrubber(TagLogicMixin, SeqStateMixin, CsvIOMixin, RenderControllerMi
     def _init_style_and_ui(self) -> None:
         """Apply global styles and build Tk widgets."""
         apply_ttk_style(self.root)
+        motion = self.config.ui
+        self.motion = MotionManager(
+            self.root,
+            fast_ms=motion.motion_fast_ms,
+            standard_ms=motion.motion_standard_ms,
+            emphasis_ms=motion.motion_emphasis_ms,
+            frame_interval_ms=motion.motion_frame_interval_ms,
+            reduce_motion=motion.reduce_motion,
+        )
         try:
             self.root.configure(bg=STYLE.colors.window_bg)
         except Exception:
@@ -168,6 +178,8 @@ class FrameScrubber(TagLogicMixin, SeqStateMixin, CsvIOMixin, RenderControllerMi
 
     def _shutdown_app(self) -> Any:
         self._closed = True
+        if hasattr(self, "motion"):
+            self.motion.close()
         if self.scan_cancel_event is not None:
             self.scan_cancel_event.set()
         self.render_stop_event.set()
@@ -216,6 +228,23 @@ class FrameScrubber(TagLogicMixin, SeqStateMixin, CsvIOMixin, RenderControllerMi
             self.btn_export_csv.state(["!disabled"])
         else:
             self.btn_export_csv.state(["disabled"])
+
+    def _show_canvas_status(
+        self,
+        text: str,
+        *,
+        color: str | None = None,
+        animate: bool = False,
+    ) -> None:
+        """Present one canvas status while cancelling any older transition."""
+        self.motion.set_canvas_text(
+            self.canvas,
+            self.txt_status,
+            text=text,
+            color=color or STYLE.colors.text_quaternary,
+            start_color=STYLE.colors.canvas_bg,
+            animate=animate,
+        )
 
     def _has_exportable_tag_data(self) -> Any:
         return any((not self._is_tag_state_empty(self._normalize_tag_state(self.tag_data.get(rel))) for rel in self._effective_seq_rel_paths()))
@@ -311,7 +340,7 @@ class FrameScrubber(TagLogicMixin, SeqStateMixin, CsvIOMixin, RenderControllerMi
         filepaths = self.groups.get(new_node_id, [])
         if not filepaths:
             self.clear_view(reset_tags=False)
-            self.canvas.itemconfig(self.txt_status, text='该节点为目录，请选择子序列', fill=STYLE.colors.text_quaternary)
+            self._show_canvas_status('该节点为目录，请选择子序列', animate=True)
             self._refresh_seq_stats()
             return
         self.dataset_id += 1
@@ -326,7 +355,7 @@ class FrameScrubber(TagLogicMixin, SeqStateMixin, CsvIOMixin, RenderControllerMi
         self.canvas.itemconfig(self.image_on_canvas, image='')
         self.slider.state(['!disabled'])
         self.slider.config(to=len(filepaths) - 1)
-        self.canvas.itemconfig(self.txt_status, text='')
+        self._show_canvas_status('')
         self.lbl_filename.config(text='加载中…')
         self.lbl_counter.config(text=f'0 / {len(filepaths)}')
         self.slider.set(0)
@@ -363,7 +392,7 @@ class FrameScrubber(TagLogicMixin, SeqStateMixin, CsvIOMixin, RenderControllerMi
         self.slider.state(['disabled'])
         self.slider.config(to=0)
         self.canvas.itemconfig(self.image_on_canvas, image='')
-        self.canvas.itemconfig(self.txt_status, text='未选择', fill=STYLE.colors.text_quaternary)
+        self._show_canvas_status('未选择')
         self.lbl_filename.config(text='无文件')
         self.lbl_counter.config(text='0 / 0')
         if reset_tags:
@@ -382,8 +411,14 @@ class FrameScrubber(TagLogicMixin, SeqStateMixin, CsvIOMixin, RenderControllerMi
         filename = os.path.basename(self.current_filepaths[self.current_idx])
         self.root.clipboard_clear()
         self.root.clipboard_append(filename)
-        self.btn_copy.config(text='已复制')
-        self.root.after(1500, lambda: self.btn_copy.config(text='复制'))
+        self.motion.show_temporary_feedback(
+            "copy-filename",
+            self.btn_copy,
+            active={"text": "已复制", "style": "Success.TButton"},
+            reduced_active={"text": "已复制", "style": "TButton"},
+            restore={"text": "复制", "style": "TButton"},
+            duration_ms=self.config.ui.feedback_hold_ms,
+        )
 
     def copy_root_folder_name(self) -> Any:
         folder_name = self.root_folder_name.strip() if self.root_folder_name else ''
@@ -391,8 +426,14 @@ class FrameScrubber(TagLogicMixin, SeqStateMixin, CsvIOMixin, RenderControllerMi
             return
         self.root.clipboard_clear()
         self.root.clipboard_append(folder_name)
-        self.btn_copy_root_folder.config(text='✓')
-        self.root.after(1200, lambda: self.btn_copy_root_folder.config(text='⧉'))
+        self.motion.show_temporary_feedback(
+            "copy-root-folder",
+            self.btn_copy_root_folder,
+            active={"text": "✓", "fg": STYLE.colors.success},
+            reduced_active={"text": "✓", "fg": STYLE.colors.text_tertiary},
+            restore={"text": "⧉", "fg": STYLE.colors.text_tertiary},
+            duration_ms=self.config.ui.feedback_hold_ms,
+        )
 
     def on_global_mouse_click(self, event: Any) -> Any:
         """点击输入框以外区域时释放输入框光标。"""
@@ -458,7 +499,7 @@ class FrameScrubber(TagLogicMixin, SeqStateMixin, CsvIOMixin, RenderControllerMi
                 self.scan_progress_queue.put_nowait(value)
 
         self.btn_load.config(text="取消扫描", command=self.cancel_folder_scan)
-        self.canvas.itemconfig(self.txt_status, text="正在扫描文件夹…", fill=STYLE.colors.text_quaternary)
+        self._show_canvas_status("正在扫描文件夹…")
         context = (folder_path, qc_by_name, import_csv_path)
         self.scan_future = self.scan_executor.submit(
             scan_image_folder,
@@ -479,7 +520,7 @@ class FrameScrubber(TagLogicMixin, SeqStateMixin, CsvIOMixin, RenderControllerMi
         if self.scan_cancel_event is not None:
             self.scan_cancel_event.set()
         self.btn_load.state(["disabled"])
-        self.canvas.itemconfig(self.txt_status, text="正在取消扫描…", fill=STYLE.colors.text_quaternary)
+        self._show_canvas_status("正在取消扫描…")
 
     def _restore_load_button(self) -> None:
         self.btn_load.config(text="加载文件夹", command=self.load_folder)
@@ -498,7 +539,7 @@ class FrameScrubber(TagLogicMixin, SeqStateMixin, CsvIOMixin, RenderControllerMi
                 break
         if latest_progress is not None:
             entries, images = latest_progress
-            self.canvas.itemconfig(self.txt_status, text=f"正在扫描：{entries} 项，{images} 张图片")
+            self._show_canvas_status(f"正在扫描：{entries} 项，{images} 张图片")
         if not self.scan_future.done():
             self._scan_poll_job = self.root.after(
                 self.config.performance.folder_scan_poll_ms,
@@ -506,18 +547,18 @@ class FrameScrubber(TagLogicMixin, SeqStateMixin, CsvIOMixin, RenderControllerMi
             )
             return
         if self.scan_cancel_event is not None and self.scan_cancel_event.is_set():
-            self.canvas.itemconfig(self.txt_status, text="扫描已取消", fill=STYLE.colors.text_quaternary)
+            self._show_canvas_status("扫描已取消", animate=True)
             self._restore_load_button()
             return
         try:
             result = self.scan_future.result()
         except ScanCancelled:
-            self.canvas.itemconfig(self.txt_status, text="扫描已取消", fill=STYLE.colors.text_quaternary)
+            self._show_canvas_status("扫描已取消", animate=True)
             self._restore_load_button()
             return
         except Exception as exc:
             logger.error("文件夹扫描失败", exc_info=True)
-            self.canvas.itemconfig(self.txt_status, text="文件夹扫描失败", fill=STYLE.colors.danger)
+            self._show_canvas_status("文件夹扫描失败", color=STYLE.colors.danger, animate=True)
             self._restore_load_button()
             messagebox.showerror("加载失败", str(exc), parent=self.root)
             return
@@ -557,7 +598,7 @@ class FrameScrubber(TagLogicMixin, SeqStateMixin, CsvIOMixin, RenderControllerMi
             "current_node": None,
         }
         self.btn_load.state(["disabled"])
-        self.canvas.itemconfig(self.txt_status, text="正在构建序列列表…", fill=STYLE.colors.text_quaternary)
+        self._show_canvas_status("正在构建序列列表…")
         self.root.after_idle(self._apply_folder_scan_batch_guarded)
 
     def _apply_folder_scan_batch_guarded(self) -> None:
@@ -567,7 +608,7 @@ class FrameScrubber(TagLogicMixin, SeqStateMixin, CsvIOMixin, RenderControllerMi
         except Exception as exc:
             logger.error("构建序列列表失败", exc_info=True)
             self._scan_apply_state = None
-            self.canvas.itemconfig(self.txt_status, text="构建序列列表失败", fill=STYLE.colors.danger)
+            self._show_canvas_status("构建序列列表失败", color=STYLE.colors.danger, animate=True)
             self._restore_load_button()
             messagebox.showerror("加载失败", str(exc), parent=self.root)
 
@@ -621,9 +662,13 @@ class FrameScrubber(TagLogicMixin, SeqStateMixin, CsvIOMixin, RenderControllerMi
         self._scan_apply_state = None
         self._adjust_sidebar_width()
         if result.image_count == 0:
-            self.canvas.itemconfig(self.txt_status, text='未找到图片')
+            self._show_canvas_status('未找到图片', color=STYLE.colors.warning, animate=True)
         else:
-            self.canvas.itemconfig(self.txt_status, text=f"已加载 {result.image_count} 张图片")
+            self._show_canvas_status(
+                f"已加载 {result.image_count} 张图片",
+                color=STYLE.colors.success,
+                animate=True,
+            )
         if pending_import_csv_path:
             self.import_csv(import_path=pending_import_csv_path, show_message=True)
         self._refresh_seq_stats()

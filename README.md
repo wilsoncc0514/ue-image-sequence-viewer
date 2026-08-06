@@ -44,6 +44,19 @@ Windows 激活虚拟环境：
 .venv\Scripts\activate
 ```
 
+如需关闭非必要动效（例如远程桌面、性能较弱的设备或自动化测试）：
+
+```bash
+UE_VIEWER_REDUCE_MOTION=1 python3 图形序列查看器/main.py
+```
+
+Windows PowerShell：
+
+```powershell
+$env:UE_VIEWER_REDUCE_MOTION = "1"
+python 图形序列查看器/main.py
+```
+
 ## 测试
 
 ```bash

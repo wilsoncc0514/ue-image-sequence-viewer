@@ -272,7 +272,7 @@ class RenderControllerMixin:
             return
         self._cache_render_misses += 1
         self._update_cache_stats_overlay()
-        self.canvas.itemconfig(self.txt_status, text='')
+        self._show_canvas_status('')
         self._request_async_render(idx, path, cw, ch, dataset_id)
         self._preload_nearby_frames(idx, cw, ch, dataset_id)
 
@@ -282,7 +282,7 @@ class RenderControllerMixin:
         self.current_tk_image = ImageTk.PhotoImage(img)
         self.canvas.coords(self.image_on_canvas, cw / 2, ch / 2)
         self.canvas.itemconfig(self.image_on_canvas, image=self.current_tk_image)
-        self.canvas.itemconfig(self.txt_status, text='')
+        self._show_canvas_status('')
 
     def _request_async_render(self, idx: Any, path: Any, cw: Any, ch: Any, dataset_id: Any) -> Any:
         self._invalidate_render()
@@ -429,7 +429,7 @@ class RenderControllerMixin:
             return
         if error is not None or img is None:
             path = self.current_filepaths[idx] if 0 <= idx < len(self.current_filepaths) else ''
-            self.canvas.itemconfig(self.txt_status, text='图片读取失败', fill=STYLE.colors.danger)
+            self._show_canvas_status('图片读取失败', color=STYLE.colors.danger, animate=True)
             if path:
                 self.lbl_filename.config(text=os.path.basename(path))
             return
