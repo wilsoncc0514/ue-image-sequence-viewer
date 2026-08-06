@@ -89,6 +89,31 @@ def make_entry(parent: tk.Misc, *, textvariable: tk.StringVar) -> tk.Entry:
     )
 
 
+def make_text(parent: tk.Misc, *, height: int = 2, wrap: str = "word") -> tk.Text:
+    """Create a multiline field using the same tokens as compact entries."""
+    c = STYLE.colors
+    f = STYLE.fonts
+    return tk.Text(
+        parent,
+        height=height,
+        wrap=wrap,
+        bg=c.field_bg,
+        fg=c.text_primary,
+        insertbackground=c.text_primary,
+        selectbackground=c.accent_primary,
+        selectforeground=c.text_primary,
+        relief=tk.FLAT,
+        borderwidth=0,
+        highlightthickness=1,
+        highlightbackground=c.field_border,
+        highlightcolor=c.field_focus_border,
+        font=f.body,
+        padx=7,
+        pady=5,
+        undo=True,
+    )
+
+
 def grid_status_options(parent: tk.Misc, options: Iterable[tuple[str, str]], variable: tk.StringVar) -> list[tk.Radiobutton]:
     """Create status radiobuttons in two columns."""
     buttons: list[tk.Radiobutton] = []

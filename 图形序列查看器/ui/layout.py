@@ -11,7 +11,7 @@ import tkinter as tk
 from tkinter import ttk
 from typing import Any
 
-from ui.components import grid_status_options, make_card, make_checkbutton, make_radiobutton
+from ui.components import grid_status_options, make_card, make_checkbutton, make_radiobutton, make_text
 from ui.mousewheel import bind_mousewheel_scroll
 from ui.styles import STYLE
 
@@ -107,9 +107,9 @@ def build_main_ui(app: Any) -> None:
 
     self.btn_load = ttk.Button(
         self.sidebar_frame,
-        text="Load Folder",
+        text="加载文件夹",
         command=self.load_folder,
-        style="Accent.TButton",
+        style="Primary.TButton",
     )
     self.btn_load.pack(fill=tk.X, padx=8, pady=(10, 10))
 
@@ -194,14 +194,14 @@ def build_main_ui(app: Any) -> None:
     top_header_frame.pack(fill=tk.X, pady=(12, 8), padx=12)
     tk.Label(
         top_header_frame,
-        text="数据质检 Tag",
+        text="质检标签",
         font=fonts.title,
         bg=right_bg,
         fg=colors.text_primary,
     ).pack(side=tk.LEFT)
     self.lbl_qc_by = tk.Label(
         top_header_frame,
-        text="QC by: 未录入",
+        text="质检人：未填写",
         font=fonts.footnote,
         bg=right_bg,
         fg=colors.text_tertiary,
@@ -262,7 +262,7 @@ def build_main_ui(app: Any) -> None:
                 sub_frame.pack(anchor="w", padx=28)
                 for sub_value in tag_def["subs"]:
                     make_radiobutton(sub_frame, text=sub_value, variable=tag_vars["sub"], value=sub_value).pack(side=tk.LEFT)
-            entry = tk.Text(container,height=2,wrap="word")
+            entry = make_text(container)
             entry.pack(anchor="w", fill=tk.X, padx=(28, 12), pady=(0, 6))
             def _sync_text(event=None, tv=tag_vars["text"], w=entry):
                 val = w.get("1.0", "end-1c")
@@ -290,5 +290,16 @@ def build_main_ui(app: Any) -> None:
 
     btn_frame_export = tk.Frame(self.right_panel, bg=right_bg)
     btn_frame_export.pack(side=tk.BOTTOM, fill=tk.X, padx=12, pady=12)
-    ttk.Button(btn_frame_export, text="导入 CSV", command=self.import_csv).pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 6))
-    ttk.Button(btn_frame_export, text="导出 CSV", command=self.export_csv).pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(6, 0))
+    self.lbl_export_status = ttk.Label(
+        btn_frame_export,
+        text="— 暂无质检数据",
+        style="PanelMuted.TLabel",
+        anchor="w",
+    )
+    self.lbl_export_status.pack(fill=tk.X, pady=(0, 8))
+    button_row = tk.Frame(btn_frame_export, bg=right_bg)
+    button_row.pack(fill=tk.X)
+    self.btn_import_csv = ttk.Button(button_row, text="导入 CSV", command=self.import_csv)
+    self.btn_import_csv.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 6))
+    self.btn_export_csv = ttk.Button(button_row, text="导出 CSV", command=self.export_csv)
+    self.btn_export_csv.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(6, 0))

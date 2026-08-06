@@ -153,7 +153,7 @@ class CsvIOMixin:
         if result.qc_by:
             self.qc_by_name = result.qc_by
             if hasattr(self, "lbl_qc_by"):
-                self.lbl_qc_by.config(text=f"QC by: {self.qc_by_name}")
+                self.lbl_qc_by.config(text=f"质检人：{self.qc_by_name}")
         if self.current_tree_node:
             self.load_tag_state(self.current_tree_node)
         self._mark_export_dirty()
@@ -257,6 +257,7 @@ class CsvIOMixin:
         try:
             written_count = self._write_export_csv(export_path)
             self.csv_exported = True
+            self._refresh_export_status()
             messagebox.showinfo('导出成功', f'数据已导出至：\n{export_path}\n导出记录：{written_count} 条。')
             return True
         except Exception as e:

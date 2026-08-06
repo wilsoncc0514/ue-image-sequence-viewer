@@ -175,15 +175,15 @@ class TagLogicMixin:
         if rerender_required and not self.var_rerender.get():
             self.var_rerender.set(True)
         self._sync_rerender_widget_state()
-        self._mark_export_dirty()
         self._persist_current_tag_state_and_refresh_stats()
+        self._mark_export_dirty()
 
     def on_rerender_change(self, *args: Any) -> None:
         """Trace callback for the rerender checkbox."""
         if self.is_loading_state:
             return
-        self._mark_export_dirty()
         self._persist_current_tag_state_and_refresh_stats()
+        self._mark_export_dirty()
 
     def _sync_rerender_widget_state(self) -> None:
         """Enable rerender only for pending/failed states; otherwise clear it."""
@@ -229,9 +229,9 @@ class TagLogicMixin:
         state = "disabled" if self.var_status.get() == "合格" else "normal"
         self.set_children_state(self.lf_light, state)
         self.set_children_state(self.lf_comp, state)
+        self._persist_current_tag_state_and_refresh_stats()
         if mark_dirty:
             self._mark_export_dirty()
-        self._persist_current_tag_state_and_refresh_stats()
 
     def set_children_state(self, container: Any, state: str) -> None:
         """Recursively set state for a widget subtree when supported."""

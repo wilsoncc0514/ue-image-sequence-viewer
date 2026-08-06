@@ -27,7 +27,7 @@ class CustomQCDialog(tk.Toplevel):
         # Title label
         lbl = tk.Label(
             self,
-            text="请输入 QC by，或导入 CSV 自动识别。",
+            text="请输入质检人，或导入 CSV 自动识别。",
             bg=colors.window_bg,
             fg=colors.text_primary,
             justify=tk.LEFT,
@@ -73,7 +73,7 @@ class CustomQCDialog(tk.Toplevel):
             text="确定",
             width=8,
             command=self.ok,
-            style="Accent.TButton",
+            style="Primary.TButton",
         ).pack(side=tk.LEFT, padx=6)
 
         self.bind("<Return>", lambda e: self.ok())
@@ -181,7 +181,7 @@ class CsvOverwriteDialog(tk.Toplevel):
             text="覆盖",
             width=10,
             command=self.overwrite,
-            style="Accent.TButton",
+            style="Destructive.TButton",
         ).pack(side=tk.LEFT, padx=8)
 
         self.bind("<Escape>", lambda e: self.cancel())
@@ -319,7 +319,7 @@ class CsvSaveDialog(tk.Toplevel):
             text="保存",
             width=10,
             command=self.ok,
-            style="Accent.TButton",
+            style="Primary.TButton",
         ).pack(side=tk.LEFT, padx=10)
 
         self.bind("<Escape>", lambda e: self.cancel())
@@ -374,7 +374,7 @@ class SeqQualifiedDialog(tk.Toplevel):
 
     def __init__(self, parent: Any, seq_name: Any) -> None:
         super().__init__(parent)
-        self.title("seq 未标记")
+        self.title("序列未标记")
         self.result = "ignore"
         colors = STYLE.colors
         fonts = STYLE.fonts
@@ -382,7 +382,7 @@ class SeqQualifiedDialog(tk.Toplevel):
         self.configure(bg=colors.window_bg)
         self.resizable(False, False)
 
-        prompt = f"当前 seq 尚未进行 Tag 操作：\n{seq_name}\n\n是否将本组 seq 判定为合格？"
+        prompt = f"当前序列尚未进行质检标记：\n{seq_name}\n\n是否将本组序列判定为合格？"
 
         lbl = tk.Label(
             self,
@@ -410,7 +410,7 @@ class SeqQualifiedDialog(tk.Toplevel):
             text="是",
             width=12,
             command=self.yes,
-            style="Accent.TButton",
+            style="Success.TButton",
         ).pack(side=tk.LEFT, padx=12)
 
         self.bind("<Return>", lambda e: self.yes())

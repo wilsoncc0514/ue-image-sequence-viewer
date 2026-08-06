@@ -20,6 +20,7 @@ from models.tag_definitions import get_default_comp_tags, get_default_light_tags
 from utils.logger import logger
 
 from ui.dialogs import CustomQCDialog
+from ui.export_status import get_export_presentation
 from ui.layout import build_main_ui
 from ui.styles import STYLE, apply_ttk_style
 
@@ -47,10 +48,10 @@ class FrameScrubber(TagLogicMixin, SeqStateMixin, CsvIOMixin, RenderControllerMi
 
 
     def change_qc_by(self):
-        dlg = CustomQCDialog(self.root,"QC by","")
+        dlg = CustomQCDialog(self.root,"质检人","")
         if dlg.result:
             self.qc_by_name = dlg.result
-            self.lbl_qc_by.config(text=f"QC by: {self.qc_by_name}")
+            self.lbl_qc_by.config(text=f"质检人：{self.qc_by_name}")
 
     def _init_runtime_state(self) -> None:
         """Initialize process-level and document-level runtime state."""
@@ -151,6 +152,7 @@ class FrameScrubber(TagLogicMixin, SeqStateMixin, CsvIOMixin, RenderControllerMi
         except Exception:
             pass
         self._setup_ui()
+        self._refresh_export_status()
 
     def on_closing(self) -> Any:
         if self.current_tree_node:
@@ -195,6 +197,25 @@ class FrameScrubber(TagLogicMixin, SeqStateMixin, CsvIOMixin, RenderControllerMi
 
     def _mark_export_dirty(self) -> Any:
         self.csv_exported = False
+        self._refresh_export_status()
+
+    def _refresh_export_status(self) -> None:
+        """Keep export affordance aligned with the current persisted QC state."""
+        if not hasattr(self, "lbl_export_status") or not hasattr(self, "btn_export_csv"):
+            return
+        presentation = get_export_presentation(
+            has_exportable_data=self._has_exportable_tag_data(),
+            csv_exported=self.csv_exported,
+        )
+        self.lbl_export_status.configure(
+            text=presentation.text,
+            style=presentation.label_style,
+        )
+        self.btn_export_csv.configure(style=presentation.button_style)
+        if presentation.export_enabled:
+            self.btn_export_csv.state(["!disabled"])
+        else:
+            self.btn_export_csv.state(["disabled"])
 
     def _has_exportable_tag_data(self) -> Any:
         return any((not self._is_tag_state_empty(self._normalize_tag_state(self.tag_data.get(rel))) for rel in self._effective_seq_rel_paths()))
@@ -306,7 +327,7 @@ class FrameScrubber(TagLogicMixin, SeqStateMixin, CsvIOMixin, RenderControllerMi
         self.slider.state(['!disabled'])
         self.slider.config(to=len(filepaths) - 1)
         self.canvas.itemconfig(self.txt_status, text='')
-        self.lbl_filename.config(text='Loading...')
+        self.lbl_filename.config(text='加载中…')
         self.lbl_counter.config(text=f'0 / {len(filepaths)}')
         self.slider.set(0)
         self.update_image_index(0, force=True)
@@ -361,7 +382,7 @@ class FrameScrubber(TagLogicMixin, SeqStateMixin, CsvIOMixin, RenderControllerMi
         filename = os.path.basename(self.current_filepaths[self.current_idx])
         self.root.clipboard_clear()
         self.root.clipboard_append(filename)
-        self.btn_copy.config(text='已复制!')
+        self.btn_copy.config(text='已复制')
         self.root.after(1500, lambda: self.btn_copy.config(text='复制'))
 
     def copy_root_folder_name(self) -> Any:
@@ -408,7 +429,7 @@ class FrameScrubber(TagLogicMixin, SeqStateMixin, CsvIOMixin, RenderControllerMi
         folder_path = filedialog.askdirectory(title='选择关卡根目录')
         if not folder_path:
             return
-        dialog = CustomQCDialog(self.root, 'QC by', '请输入质检人名称：')
+        dialog = CustomQCDialog(self.root, '质检人', '请输入质检人名称：')
         if dialog.result is None:
             return
         self._start_folder_scan(folder_path, dialog.result.strip(), dialog.import_csv_path)
@@ -461,7 +482,7 @@ class FrameScrubber(TagLogicMixin, SeqStateMixin, CsvIOMixin, RenderControllerMi
         self.canvas.itemconfig(self.txt_status, text="正在取消扫描…", fill=STYLE.colors.text_quaternary)
 
     def _restore_load_button(self) -> None:
-        self.btn_load.config(text="Load Folder", command=self.load_folder)
+        self.btn_load.config(text="加载文件夹", command=self.load_folder)
         self.btn_load.state(["!disabled"])
 
     def _poll_folder_scan(self, generation: int, context: tuple[str, str, str | None]) -> None:
@@ -522,7 +543,8 @@ class FrameScrubber(TagLogicMixin, SeqStateMixin, CsvIOMixin, RenderControllerMi
         self.seq_rel_paths.clear()
         self.seq_rel_path_set.clear()
         self.clear_view()
-        self.lbl_qc_by.config(text=f'QC by: {self.qc_by_name}')
+        self._refresh_export_status()
+        self.lbl_qc_by.config(text=f'质检人：{self.qc_by_name or "未填写"}')
         if hasattr(self, 'lbl_root_folder_name'):
             self.lbl_root_folder_name.config(text=self.root_folder_name)
         root_node = self.tree.insert('', 'end', text=self.root_folder_name, open=True)

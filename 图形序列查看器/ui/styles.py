@@ -52,8 +52,17 @@ class ColorTokens:
     accent_soft: str = "#12324f"
 
     success: str = "#30d158"
+    success_button: str = "#237a3b"
+    success_button_hover: str = "#2b9147"
+    success_button_active: str = "#1d6531"
     warning: str = "#ff9f0a"
+    warning_button: str = "#8a5a00"
+    warning_button_hover: str = "#a56d00"
+    warning_button_active: str = "#704900"
     danger: str = "#ff453a"
+    danger_button: str = "#c9342d"
+    danger_button_hover: str = "#e24239"
+    danger_button_active: str = "#a92a25"
     system_teal: str = "#64d2ff"
 
 
@@ -149,7 +158,6 @@ def apply_ttk_style(root: tk.Misc) -> None:
     button_bg_map = [("active", c.control_hover_bg), ("pressed", c.control_active_bg), ("!active", c.control_bg)]
     button_fg_map = [("disabled", c.text_quaternary), ("!disabled", c.text_primary)]
     button_border_map = [("active", c.control_hover_bg), ("pressed", c.control_active_bg)]
-    accent_bg_map = [("active", c.accent_primary_hover), ("pressed", c.accent_primary_active), ("!active", c.accent_primary)]
     tree_bg_map = [("selected", c.accent_soft)]
     tree_fg_map = [("selected", c.text_primary)]
     scrollbar_bg_map = [("active", c.control_hover_bg), ("!active", c.control_bg)]
@@ -167,7 +175,7 @@ def apply_ttk_style(root: tk.Misc) -> None:
         bordercolor=c.control_bg,
         lightcolor=c.control_bg,
         darkcolor=c.control_bg,
-        focuscolor=c.control_bg,
+        focuscolor=c.field_focus_border,
         relief="flat",
         borderwidth=0,
     )
@@ -180,23 +188,62 @@ def apply_ttk_style(root: tk.Misc) -> None:
         darkcolor=button_border_map,
     )
 
-    style.configure(
-        "Accent.TButton",
-        padding=(14, 6),
-        font=f.body_emphasized,
-        foreground=c.text_primary,
+    def configure_semantic_button(
+        style_name: str,
+        *,
+        background: str,
+        hover: str,
+        active: str,
+    ) -> None:
+        style.configure(
+            style_name,
+            padding=(14, 6),
+            font=f.body_emphasized,
+            foreground=c.text_primary,
+            background=background,
+            bordercolor=background,
+            lightcolor=background,
+            darkcolor=background,
+            focuscolor=c.field_focus_border,
+            relief="flat",
+            borderwidth=0,
+        )
+        style.map(
+            style_name,
+            background=[("active", hover), ("pressed", active), ("!active", background)],
+            foreground=button_fg_map,
+        )
+
+    configure_semantic_button(
+        "Primary.TButton",
         background=c.accent_primary,
-        bordercolor=c.accent_primary,
-        lightcolor=c.accent_primary,
-        darkcolor=c.accent_primary,
-        focuscolor=c.accent_primary,
-        relief="flat",
-        borderwidth=0,
+        hover=c.accent_primary_hover,
+        active=c.accent_primary_active,
     )
-    style.map(
+    # Compatibility alias for older callers while the UI migrates to roles.
+    configure_semantic_button(
         "Accent.TButton",
-        background=accent_bg_map,
-        foreground=button_fg_map,
+        background=c.accent_primary,
+        hover=c.accent_primary_hover,
+        active=c.accent_primary_active,
+    )
+    configure_semantic_button(
+        "Success.TButton",
+        background=c.success_button,
+        hover=c.success_button_hover,
+        active=c.success_button_active,
+    )
+    configure_semantic_button(
+        "Warning.TButton",
+        background=c.warning_button,
+        hover=c.warning_button_hover,
+        active=c.warning_button_active,
+    )
+    configure_semantic_button(
+        "Destructive.TButton",
+        background=c.danger_button,
+        hover=c.danger_button_hover,
+        active=c.danger_button_active,
     )
 
     style.configure("Icon.TButton", padding=(4, 2), font=f.base)
@@ -204,6 +251,9 @@ def apply_ttk_style(root: tk.Misc) -> None:
     style.configure("TLabel", font=f.body, background=c.window_bg, foreground=c.text_secondary)
     style.configure("Muted.TLabel", font=f.footnote, background=c.window_bg, foreground=c.text_tertiary)
     style.configure("Section.TLabel", font=f.section, background=c.window_bg, foreground=c.text_primary)
+    style.configure("PanelMuted.TLabel", font=f.footnote, background=c.panel_bg, foreground=c.text_tertiary)
+    style.configure("PanelWarning.TLabel", font=f.footnote, background=c.panel_bg, foreground=c.warning)
+    style.configure("PanelSuccess.TLabel", font=f.footnote, background=c.panel_bg, foreground=c.success)
 
     style.configure(
         "Treeview",
