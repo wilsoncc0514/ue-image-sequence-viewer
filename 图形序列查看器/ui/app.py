@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import queue
+import sys
 import threading
 import tkinter as tk
 from collections import OrderedDict
@@ -22,6 +23,7 @@ from utils.logger import logger
 from ui.dialogs import CustomQCDialog
 from ui.export_status import get_export_presentation
 from ui.layout import build_main_ui
+from ui.menu import build_app_menu, refresh_reduce_motion_menu
 from ui.motion import MotionManager
 from ui.styles import STYLE, apply_ttk_style
 
@@ -157,6 +159,7 @@ class FrameScrubber(TagLogicMixin, SeqStateMixin, CsvIOMixin, RenderControllerMi
             frame_interval_ms=motion.motion_frame_interval_ms,
             reduce_motion=motion.reduce_motion,
         )
+        self.var_reduce_motion = tk.BooleanVar(value=self.motion.reduce_motion_active)
         try:
             self.root.configure(bg=STYLE.colors.window_bg)
         except Exception:
@@ -294,7 +297,21 @@ class FrameScrubber(TagLogicMixin, SeqStateMixin, CsvIOMixin, RenderControllerMi
             pass
 
     def _setup_ui(self) -> None:
+        build_app_menu(self)
         build_main_ui(self)
+
+    def on_reduce_motion_change(self) -> None:
+        """Apply the session preference and mirror the effective state in UI."""
+        self.motion.set_reduce_motion(bool(self.var_reduce_motion.get()))
+        self.var_reduce_motion.set(self.motion.reduce_motion_active)
+        refresh_reduce_motion_menu(self)
+
+    def toggle_reduce_motion(self, _event: Any = None) -> str:
+        """Toggle reduced motion from the platform settings shortcut."""
+        if not self.motion.environment_reduces_motion:
+            self.var_reduce_motion.set(not self.var_reduce_motion.get())
+            self.on_reduce_motion_change()
+        return "break"
 
     def _bind_shortcuts(self) -> Any:
         self.root.bind('<Left>', lambda e: self.on_global_horizontal_key(e, -1))
@@ -304,6 +321,8 @@ class FrameScrubber(TagLogicMixin, SeqStateMixin, CsvIOMixin, RenderControllerMi
         self.root.bind('<Up>', lambda e: self.on_global_vertical_key(e, -1))
         self.root.bind('<Down>', lambda e: self.on_global_vertical_key(e, 1))
         self.root.bind_all('<Button-1>', self.on_global_mouse_click, add='+')
+        motion_shortcut = '<Command-comma>' if sys.platform == 'darwin' else '<Control-comma>'
+        self.root.bind_all(motion_shortcut, self.toggle_reduce_motion, add='+')
 
 
     def on_empty_panel_click(self, event: Any) -> Any:

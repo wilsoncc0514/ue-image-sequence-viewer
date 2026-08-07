@@ -82,13 +82,23 @@ class MotionManager:
     def pending_count(self) -> int:
         return len(self._pending)
 
-    def motion_enabled(self) -> bool:
+    @property
+    def environment_reduces_motion(self) -> bool:
+        """Return whether the process environment forces reduced motion."""
         env_value = os.getenv(REDUCE_MOTION_ENV, "").strip().lower()
-        return not self._closed and not self._reduce_motion and env_value not in _TRUTHY
+        return env_value in _TRUTHY
+
+    @property
+    def reduce_motion_active(self) -> bool:
+        """Return the effective accessibility preference from every source."""
+        return self._reduce_motion or self.environment_reduces_motion
+
+    def motion_enabled(self) -> bool:
+        return not self._closed and not self.reduce_motion_active
 
     def set_reduce_motion(self, enabled: bool) -> None:
         self._reduce_motion = bool(enabled)
-        if enabled:
+        if self.reduce_motion_active:
             self.cancel_all(apply_final=True)
 
     def _cancel(self, key: Hashable, *, apply_final: bool) -> None:

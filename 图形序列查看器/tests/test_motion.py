@@ -115,6 +115,41 @@ class MotionManagerTests(unittest.TestCase):
         self.assertEqual(canvas.options["fill"], "#30d158")
         self.assertEqual(root.jobs, {})
 
+    def test_active_state_reports_config_and_environment_sources(self) -> None:
+        root = _FakeRoot()
+        manager = MotionManager(root, reduce_motion=True)
+
+        self.assertTrue(manager.reduce_motion_active)
+        self.assertFalse(manager.environment_reduces_motion)
+
+        manager.set_reduce_motion(False)
+        self.assertFalse(manager.reduce_motion_active)
+
+        with patch.dict(os.environ, {REDUCE_MOTION_ENV: "yes"}):
+            self.assertTrue(manager.environment_reduces_motion)
+            self.assertTrue(manager.reduce_motion_active)
+
+    def test_environment_override_cannot_be_disabled_at_runtime(self) -> None:
+        root = _FakeRoot()
+        canvas = _FakeCanvas()
+        manager = MotionManager(root, standard_ms=48, frame_interval_ms=16)
+        manager.set_canvas_text(
+            canvas,
+            1,
+            text="完成",
+            color="#30d158",
+            start_color="#070708",
+            animate=True,
+        )
+
+        with patch.dict(os.environ, {REDUCE_MOTION_ENV: "1"}):
+            manager.set_reduce_motion(False)
+
+            self.assertTrue(manager.reduce_motion_active)
+            self.assertEqual(canvas.options["fill"], "#30d158")
+            self.assertEqual(manager.pending_count, 0)
+            self.assertEqual(root.jobs, {})
+
     def test_new_canvas_transition_stops_old_transition(self) -> None:
         root = _FakeRoot()
         canvas = _FakeCanvas()
