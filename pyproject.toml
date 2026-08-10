@@ -1,6 +1,6 @@
 [project]
 name = "ue-image-sequence-viewer"
-version = "3.6.0"
+version = "3.7.0"
 description = "Tkinter image-sequence QC viewer for UE rendering workflows"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -9,5 +9,24 @@ dependencies = [
 ]
 
 [tool.unittest]
-start-directory = "图形序列查看器_v3.6/tests"
+start-directory = "图形序列查看器/tests"
 
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+extend-exclude = ["csv_merger.py", "历史版本"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.10"
+check_untyped_defs = true
+ignore_missing_imports = true
+warn_unused_ignores = true
+files = [
+    "图形序列查看器",
+]
+explicit_package_bases = true
+mypy_path = "图形序列查看器"
