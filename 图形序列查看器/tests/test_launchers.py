@@ -34,9 +34,12 @@ class LauncherTests(unittest.TestCase):
 
     def test_windows_ci_runs_the_synchronous_launcher_smoke_test(self) -> None:
         workflow = (ROOT.parent / ".github" / "workflows" / "tests.yml").read_text(encoding="utf-8")
+        linux_job, windows_job = workflow.split("  windows-smoke:", maxsplit=1)
 
-        self.assertIn("runs-on: windows-latest", workflow)
-        self.assertIn('call "启动图形序列查看器.bat" --smoke-test', workflow)
+        self.assertIn("mypy", linux_job)
+        self.assertNotIn("mypy", windows_job)
+        self.assertIn("runs-on: windows-latest", windows_job)
+        self.assertIn('call "启动图形序列查看器.bat" --smoke-test', windows_job)
 
 
 if __name__ == "__main__":
