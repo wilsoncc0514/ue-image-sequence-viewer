@@ -23,6 +23,8 @@ class GuiSmokeTests(unittest.TestCase):
             root = tk.Tk()
             root.withdraw()
             app = FrameScrubber(root)
+            self.assertFalse(hasattr(app, "tree_scroll_x"))
+            self.assertEqual(int(app.sidebar_frame.cget("width")), int(app.right_panel.cget("width")))
             outcome: dict[str, object] = {}
 
             def poll() -> None:

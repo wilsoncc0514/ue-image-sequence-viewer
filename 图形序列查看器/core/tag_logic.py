@@ -11,6 +11,7 @@ from typing import Any, Iterator
 
 from utils.filename_parser import extract_current_filename_key_info, extract_filename_key_info
 
+from core.app_state import AppState
 from core.tag_engine import (
     ActiveTagItem,
     infer_status_from_tags,
@@ -22,7 +23,7 @@ from core.tag_engine import (
 )
 
 
-class TagLogicMixin:
+class TagLogicMixin(AppState):
     """Mixin implementing tag and status behavior for ``FrameScrubber``."""
 
     def _init_tag_vars(self, defs: Any, target_dict: dict[str, Any]) -> None:

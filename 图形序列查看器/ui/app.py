@@ -5,6 +5,7 @@ import os
 import queue
 import sys
 import threading
+import time
 import tkinter as tk
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
@@ -18,6 +19,7 @@ from core.render_controller import RenderControllerMixin
 from core.seq_state import SeqStateMixin
 from core.tag_logic import TagLogicMixin
 from models.tag_definitions import get_default_comp_tags, get_default_light_tags
+from utils.file_reveal import reveal_file
 from utils.logger import logger
 
 from ui.dialogs import CustomQCDialog
@@ -26,6 +28,7 @@ from ui.layout import build_main_ui
 from ui.menu import build_app_menu, refresh_reduce_motion_menu
 from ui.motion import MotionManager
 from ui.styles import STYLE, apply_ttk_style
+from ui.tree_viewport import centered_yview_fraction
 
 
 class FrameScrubber(TagLogicMixin, SeqStateMixin, CsvIOMixin, RenderControllerMixin):
@@ -132,6 +135,10 @@ class FrameScrubber(TagLogicMixin, SeqStateMixin, CsvIOMixin, RenderControllerMi
         self._programmatic_slider_update = False
         self._keyboard_preview_active = False
         self._keyboard_preview_job = None
+        self._tree_center_job = None
+        self._reveal_process = None
+        self._reveal_poll_job = None
+        self._reveal_started_at = 0.0
         self.navigation_direction = 0
         self._last_frame_idx_for_direction = -1
 
@@ -192,6 +199,13 @@ class FrameScrubber(TagLogicMixin, SeqStateMixin, CsvIOMixin, RenderControllerMi
         if self._keyboard_preview_job:
             self.root.after_cancel(self._keyboard_preview_job)
             self._keyboard_preview_job = None
+        if self._tree_center_job:
+            self.root.after_cancel(self._tree_center_job)
+            self._tree_center_job = None
+        if self._reveal_poll_job:
+            self.root.after_cancel(self._reveal_poll_job)
+            self._reveal_poll_job = None
+        self._reveal_process = None
         if self._render_result_poll_job:
             self.root.after_cancel(self._render_result_poll_job)
             self._render_result_poll_job = None
@@ -284,9 +298,18 @@ class FrameScrubber(TagLogicMixin, SeqStateMixin, CsvIOMixin, RenderControllerMi
         walk()
         max_chars = max((self._estimate_visual_chars(s) for s in samples), default=24)
         estimated = int(max_chars * 8 + 96)
-        target_width = max(self.config.sidebar.min_width, min(self.config.sidebar.max_width, estimated))
+        window_width = max(self.root.winfo_width(), self.config.window.min_width)
+        balanced_max = max(
+            self.config.sidebar.min_width,
+            (window_width - self.config.ui.main_view_min_width) // 2,
+        )
+        target_width = max(
+            self.config.sidebar.min_width,
+            min(self.config.sidebar.max_width, balanced_max, estimated),
+        )
         tree_width = max(self.config.sidebar.tree_min_width, target_width - 46)
         self.sidebar_frame.config(width=target_width)
+        self.right_panel.config(width=target_width)
         try:
             self.paned_window.paneconfigure(self.sidebar_frame, minsize=self.config.sidebar.min_width)
         except tk.TclError:
@@ -295,6 +318,84 @@ class FrameScrubber(TagLogicMixin, SeqStateMixin, CsvIOMixin, RenderControllerMi
             self.tree.column('#0', width=tree_width, minwidth=self.config.sidebar.tree_min_width, stretch=True)
         except tk.TclError:
             pass
+
+    def on_tree_double_click(self, event: Any) -> str | None:
+        """Reveal the displayed frame for a double-clicked image group."""
+        node_id = self.tree.identify_row(event.y)
+        paths = self.groups.get(node_id, [])
+        if not paths:
+            return None
+        index = self.current_idx if node_id == self.current_tree_node else 0
+        if not 0 <= index < len(paths):
+            index = 0
+        active_process = self._reveal_process
+        if active_process is not None:
+            if active_process.poll() is None:
+                return "break"
+            self._poll_file_reveal()
+        try:
+            self._reveal_process = reveal_file(paths[index])
+            self._reveal_started_at = time.monotonic()
+            self._poll_file_reveal()
+        except (OSError, ValueError) as exc:
+            logger.error("无法在文件管理器中定位图片", exc_info=True)
+            messagebox.showerror("定位失败", str(exc), parent=self.root)
+        return "break"
+
+    def _poll_file_reveal(self) -> None:
+        """Report fast launcher failures without waiting on Finder/Explorer."""
+        self._reveal_poll_job = None
+        process = self._reveal_process
+        if process is None:
+            return
+        return_code = process.poll()
+        if return_code is not None:
+            self._reveal_process = None
+            if return_code != 0:
+                message = f"系统文件管理器返回错误码 {return_code}"
+                logger.error(message)
+                messagebox.showerror("定位失败", message, parent=self.root)
+            return
+        elapsed_ms = (time.monotonic() - self._reveal_started_at) * 1_000
+        if elapsed_ms >= self.config.performance.file_reveal_handoff_ms:
+            logger.warning("文件定位命令持续运行，已交由系统文件管理器继续处理")
+            self._reveal_process = None
+            return
+        self._reveal_poll_job = self.root.after(
+            self.config.performance.file_reveal_poll_ms,
+            self._poll_file_reveal,
+        )
+
+    def _schedule_tree_center(self, node_id: Any) -> None:
+        """Center one visible node with cancellable, reduced-motion-aware scroll."""
+        if self._tree_center_job:
+            self.root.after_cancel(self._tree_center_job)
+        self.tree.see(node_id)
+
+        def apply() -> None:
+            self._tree_center_job = None
+            if not self.tree.exists(node_id):
+                return
+            bbox = self.tree.bbox(node_id)
+            if not bbox:
+                return
+            first, last = self.tree.yview()
+            _, item_y, _, item_height = bbox
+            target = centered_yview_fraction(
+                first=first,
+                last=last,
+                item_y=item_y,
+                item_height=item_height,
+                viewport_height=self.tree.winfo_height(),
+            )
+            self.motion.animate_value(
+                ("tree-center", id(self.tree)),
+                start=first,
+                end=target,
+                update=self.tree.yview_moveto,
+            )
+
+        self._tree_center_job = self.root.after_idle(apply)
 
     def _setup_ui(self) -> None:
         build_app_menu(self)
@@ -396,7 +497,7 @@ class FrameScrubber(TagLogicMixin, SeqStateMixin, CsvIOMixin, RenderControllerMi
             return
         first_child = self._first_child_sequence_node(node_id)
         if first_child:
-            self._select_tree_node_without_unmarked_prompt(first_child)
+            self._select_tree_node_without_unmarked_prompt(first_child, center=True)
 
     def clear_view(self, reset_tags: Any=True) -> Any:
         self.dataset_id += 1

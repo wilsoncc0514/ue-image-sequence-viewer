@@ -2,7 +2,7 @@
 
 一款基于 Python、Tkinter 和 Pillow 的图像帧序列质检工具，支持序列浏览、Tag 标注、CSV 导入导出、异步渲染与帧预加载。
 
-当前版本：**v3.6.1**
+当前版本：**v3.7.0**
 
 ## 功能
 
@@ -43,6 +43,13 @@ Windows 激活虚拟环境：
 ```powershell
 .venv\Scripts\activate
 ```
+
+## 启动器
+
+- macOS：双击 `图形序列查看器/启动图形序列查看器.command`。
+- Windows：双击 `图形序列查看器\启动图形序列查看器.bat`。
+
+启动器优先使用程序目录内的 `.venv`，否则使用系统 Python。它们只检查 Python 3.10+、Tkinter 和 Pillow，不会自动下载或修改系统环境。
 
 如需关闭非必要动效（例如远程桌面、性能较弱的设备或自动化测试）：
 

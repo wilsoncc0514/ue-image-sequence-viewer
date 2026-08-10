@@ -6,8 +6,8 @@ import threading
 import unittest
 from collections import OrderedDict
 from pathlib import Path
-from types import SimpleNamespace
 
+from config.settings import AppConfig, SafetyConfig
 from core.render_controller import RenderControllerMixin
 from PIL import Image
 
@@ -23,7 +23,7 @@ class ImageLimitTests(unittest.TestCase):
         controller._cache_original_hits = 0
         controller._cache_original_misses = 0
         controller._cache_stats_dirty = False
-        controller.config = SimpleNamespace(safety=SimpleNamespace(max_image_pixels=100))
+        controller.config = AppConfig(safety=SafetyConfig(max_image_pixels=100))
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "large.png"
             Image.new("RGB", (11, 10)).save(path)

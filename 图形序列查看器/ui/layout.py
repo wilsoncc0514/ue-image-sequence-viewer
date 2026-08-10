@@ -80,12 +80,9 @@ def build_main_ui(app: Any) -> None:
     tree_frame.pack(expand=True, fill=tk.BOTH, padx=6)
     self.tree_scroll_y = ttk.Scrollbar(tree_frame)
     self.tree_scroll_y.pack(side=tk.RIGHT, fill=tk.Y)
-    self.tree_scroll_x = ttk.Scrollbar(tree_frame, orient=tk.HORIZONTAL)
-    self.tree_scroll_x.pack(side=tk.BOTTOM, fill=tk.X)
     self.tree = ttk.Treeview(
         tree_frame,
         yscrollcommand=self.tree_scroll_y.set,
-        xscrollcommand=self.tree_scroll_x.set,
         selectmode="browse",
         show="tree",
     )
@@ -97,9 +94,9 @@ def build_main_ui(app: Any) -> None:
     )
     self.tree.pack(side=tk.LEFT, expand=True, fill=tk.BOTH)
     self.tree_scroll_y.config(command=self.tree.yview)
-    self.tree_scroll_x.config(command=self.tree.xview)
     self.tree.bind("<<TreeviewSelect>>", self.on_tree_select)
     self.tree.bind("<Button-1>", self.on_tree_click)
+    self.tree.bind("<Double-1>", self.on_tree_double_click)
     self.tree.bind("<Button-1>", self.on_empty_panel_click, add="+")
     self.tree.bind("<<TreeviewOpen>>", self.on_tree_open)
     self.tree.bind("<Up>", lambda e: self.on_tree_vertical_key(e, -1))
@@ -185,7 +182,8 @@ def build_main_ui(app: Any) -> None:
     self.lbl_counter.pack(side=tk.RIGHT)
 
     # Tag panel ----------------------------------------------------------------
-    self.right_panel = tk.Frame(self.paned_window, width=self.config.tag_panel.width, bg=right_bg)
+    side_width = self.config.sidebar.initial_width
+    self.right_panel = tk.Frame(self.paned_window, width=side_width, bg=right_bg)
     self.right_panel.pack_propagate(False)
     self.right_panel.bind("<Button-1>", self.on_empty_panel_click, add="+")
     self.paned_window.add(self.right_panel, weight=0)
@@ -223,7 +221,7 @@ def build_main_ui(app: Any) -> None:
         (0, 0),
         window=self.tag_frame,
         anchor="nw",
-        width=self.config.tag_panel.width - 24,
+        width=side_width - 24,
     )
     self.tag_frame.bind("<Configure>", lambda e: tag_canvas.configure(scrollregion=tag_canvas.bbox("all")))
     tag_canvas.bind(
@@ -269,7 +267,7 @@ def build_main_ui(app: Any) -> None:
                 if tv.get() != val:
                     tv.set(val)
 
-            entry.bind("<KeyRelease>", _sync_text)
+            entry.bind("<<Modified>>", _sync_text, add="+")
 
             def _sync_from_var(*args, tv=tag_vars["text"], w=entry):
                 val = tv.get()

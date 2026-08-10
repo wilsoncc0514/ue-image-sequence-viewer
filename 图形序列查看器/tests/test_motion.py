@@ -57,6 +57,20 @@ class _FakeWidget:
 
 
 class MotionManagerTests(unittest.TestCase):
+    def test_numeric_transition_reaches_target_and_replaces_old_work(self) -> None:
+        root = _FakeRoot()
+        manager = MotionManager(root, standard_ms=32, frame_interval_ms=16)
+        values: list[float] = []
+
+        manager.animate_value("tree", start=0.1, end=0.5, update=values.append)
+        old_job = next(iter(root.jobs))
+        manager.animate_value("tree", start=0.2, end=0.6, update=values.append)
+        root.run_all()
+
+        self.assertIn(old_job, root.cancelled)
+        self.assertEqual(values[-1], 0.6)
+        self.assertEqual(manager.pending_count, 0)
+
     def test_canvas_fade_reaches_exact_target_and_cleans_job(self) -> None:
         root = _FakeRoot()
         canvas = _FakeCanvas()

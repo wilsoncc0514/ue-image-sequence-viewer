@@ -13,6 +13,7 @@ from ui.dialogs import CsvOverwriteDialog, CsvSaveDialog
 from utils.logger import logger
 from utils.safe_files import atomic_write_text, require_file_size
 
+from core.app_state import AppState
 from core.tag_engine import normalize_sub_value, normalize_tag_name
 
 
@@ -25,7 +26,7 @@ class CsvImportResult:
     unmatched: int
     qc_by: str
 
-class CsvIOMixin:
+class CsvIOMixin(AppState):
 
     @staticmethod
     def _csv_text(value: Any) -> str:

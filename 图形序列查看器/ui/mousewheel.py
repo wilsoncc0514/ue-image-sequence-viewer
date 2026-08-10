@@ -12,7 +12,7 @@ def _wheel_units(event: tk.Event) -> int:
     delta = getattr(event, 'delta', 0)
     return -3 if delta > 0 else 3
 
-def bind_mousewheel_scroll(canvas: tk.Canvas, root_widget: tk.Widget) -> None:
+def bind_mousewheel_scroll(canvas: tk.Canvas, root_widget: tk.Misc) -> None:
     """Bind mouse wheel scrolling to a canvas and its current descendants.
 
     Tkinter does not bubble wheel events consistently on macOS/Windows/Linux.
@@ -25,7 +25,7 @@ def bind_mousewheel_scroll(canvas: tk.Canvas, root_widget: tk.Widget) -> None:
         canvas.yview_scroll(_wheel_units(event), 'units')
         return 'break'
 
-    def bind_recursive(widget: tk.Widget) -> None:
+    def bind_recursive(widget: tk.Misc) -> None:
         for sequence in ('<MouseWheel>', '<Button-4>', '<Button-5>'):
             widget.bind(sequence, on_wheel, add='+')
         for child in widget.winfo_children():

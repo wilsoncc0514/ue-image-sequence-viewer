@@ -122,6 +122,62 @@ class MotionManager:
         self.cancel_all(apply_final=False)
         self._closed = True
 
+    def animate_value(
+        self,
+        key: Hashable,
+        *,
+        start: float,
+        end: float,
+        update: Callable[[float], None],
+        duration_ms: int | None = None,
+        on_finished: Callable[[], None] | None = None,
+    ) -> None:
+        """Animate one numeric value with the shared OutCubic lifecycle."""
+        semantic_key = ("value", key)
+        self._cancel(semantic_key, apply_final=False)
+        duration = self.standard_ms if duration_ms is None else max(0, duration_ms)
+
+        def apply(value: float) -> bool:
+            try:
+                update(value)
+            except tk.TclError:
+                logger.warning("Widget disappeared during numeric motion", exc_info=True)
+                return False
+            return True
+
+        def apply_final() -> None:
+            if not apply(end):
+                return
+            if on_finished is not None:
+                on_finished()
+
+        if not self.motion_enabled() or duration == 0 or start == end:
+            apply_final()
+            return
+
+        steps = max(1, math.ceil(duration / self.frame_interval_ms))
+        frame_delay_ms = max(1, round(duration / steps))
+        current_step = 0
+        pending = _PendingJob(job_id=None, apply_final=apply_final)
+
+        def advance() -> None:
+            nonlocal current_step
+            if self._pending.get(semantic_key) is not pending:
+                return
+            current_step += 1
+            if current_step >= steps:
+                self._pending.pop(semantic_key, None)
+                apply_final()
+                return
+            progress = _out_cubic(current_step / steps)
+            if not apply(start + (end - start) * progress):
+                self._pending.pop(semantic_key, None)
+                return
+            pending.job_id = self.root.after(frame_delay_ms, advance)
+
+        pending.job_id = self.root.after(frame_delay_ms, advance)
+        self._pending[semantic_key] = pending
+
     def set_canvas_text(
         self,
         canvas: Any,

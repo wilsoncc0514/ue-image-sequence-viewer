@@ -6,10 +6,11 @@ from typing import Any
 
 from ui.dialogs import SeqQualifiedDialog
 
+from core.app_state import AppState
 from core.tag_engine import normalize_sub_value, normalize_tag_name
 
 
-class SeqStateMixin:
+class SeqStateMixin(AppState):
     """Mixin implementing seq-level QC state management."""
 
     def _create_empty_tag_state(self, status: Any='', rerender: Any=False) -> Any:
@@ -166,7 +167,7 @@ class SeqStateMixin:
         children = self.tree.get_children(seq_node)
         return children[0] if children else None
 
-    def _select_tree_node_without_unmarked_prompt(self, node_id: Any) -> Any:
+    def _select_tree_node_without_unmarked_prompt(self, node_id: Any, *, center: bool = False) -> Any:
         """选中并激活树节点，但不触发离开未标记 seq 的二次询问。"""
         if not node_id:
             return
@@ -176,6 +177,8 @@ class SeqStateMixin:
         self.tree.selection_set(node_id)
         self.tree.focus(node_id)
         self.tree.see(node_id)
+        if center:
+            self._schedule_tree_center(node_id)
         if same_selection:
             self.on_tree_select(None)
 
@@ -205,7 +208,7 @@ class SeqStateMixin:
         self.tree.item(seq_node, open=True)
         first_child = self._first_child_sequence_node(seq_node)
         if first_child:
-            self._select_tree_node_without_unmarked_prompt(first_child)
+            self._select_tree_node_without_unmarked_prompt(first_child, center=True)
         else:
             self._select_tree_node_without_unmarked_prompt(seq_node)
 
@@ -245,14 +248,17 @@ class SeqStateMixin:
         """导出 CSV 前，如果光标停在最后一组且该 seq 未标记，则询问是否合格。"""
         if not self._is_current_seq_last_in_tree_order():
             return
-        current_rel = self.node_metadata.get(self.current_tree_node)
+        current_node = self.current_tree_node
+        if not current_node:
+            return
+        current_rel = self.node_metadata.get(current_node)
         if not current_rel or not self._is_seq_unmarked(current_rel):
             return
         display_name = current_rel.replace('\\', '/')
         dialog = SeqQualifiedDialog(self.root, display_name)
         if dialog.result == 'yes':
             self._mark_seq_as_qualified(current_rel)
-            self.load_tag_state(self.current_tree_node)
+            self.load_tag_state(current_node)
 
     def save_tag_state(self, node_id: Any) -> Any:
         if not node_id:

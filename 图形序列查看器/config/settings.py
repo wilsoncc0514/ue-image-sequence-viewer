@@ -36,6 +36,8 @@ class PerformanceConfig:
     max_render_result_queue_size: int = 32
     folder_scan_poll_ms: int = 50
     tree_build_batch_size: int = 200
+    file_reveal_poll_ms: int = 100
+    file_reveal_handoff_ms: int = 2_000
 
     def __post_init__(self) -> None:
         positive_values = (
@@ -48,6 +50,8 @@ class PerformanceConfig:
             self.max_render_result_queue_size,
             self.folder_scan_poll_ms,
             self.tree_build_batch_size,
+            self.file_reveal_poll_ms,
+            self.file_reveal_handoff_ms,
         )
         if any(value <= 0 for value in positive_values):
             raise ValueError("性能配置中的容量、批量和延迟必须为正数")
@@ -65,7 +69,7 @@ class WindowConfig:
     """Main window metadata and geometry."""
 
     title: str = "图形序列查看器"
-    version: str = "v3.6.1"
+    version: str = "v3.7.0"
     default_geometry: str = "1450x900"
     min_width: int = 1180
     min_height: int = 760
@@ -85,9 +89,7 @@ class SidebarConfig:
 class TagPanelConfig:
     """Right-side tag panel layout policy."""
 
-    width: int = 304
     canvas_window_min_width: int = 250
-    mousewheel_units: int = 3
 
 
 @dataclass(frozen=True)
@@ -103,6 +105,7 @@ class UIConfig:
     motion_emphasis_ms: int = 240
     motion_frame_interval_ms: int = 16
     feedback_hold_ms: int = 1200
+    main_view_min_width: int = 420
     reduce_motion: bool = False
 
     def __post_init__(self) -> None:
@@ -110,6 +113,8 @@ class UIConfig:
             raise ValueError("动效和反馈时长不能为负数")
         if self.motion_frame_interval_ms <= 0:
             raise ValueError("动效帧间隔必须为正数")
+        if self.main_view_min_width <= 0:
+            raise ValueError("主画布最小宽度必须为正数")
 
 
 @dataclass(frozen=True)

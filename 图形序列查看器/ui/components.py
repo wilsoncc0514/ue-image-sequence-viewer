@@ -6,9 +6,11 @@ make future UI adjustments much cheaper.
 from __future__ import annotations
 
 import tkinter as tk
-from typing import Any, Iterable
+from collections.abc import Callable
+from typing import Any, Iterable, Literal
 
 from ui.styles import STYLE
+from ui.text_height import bind_auto_height
 
 
 def make_card(parent: tk.Misc, title: str, *, padx: int = 12, pady: tuple[int, int] = (0, 8)) -> tuple[tk.Frame, tk.Frame]:
@@ -31,7 +33,13 @@ def make_card(parent: tk.Misc, title: str, *, padx: int = 12, pady: tuple[int, i
     return card, body
 
 
-def make_checkbutton(parent: tk.Misc, *, text: str, variable: tk.Variable, command: Any | None = None) -> tk.Checkbutton:
+def make_checkbutton(
+    parent: tk.Misc,
+    *,
+    text: str,
+    variable: tk.Variable,
+    command: str | Callable[[], Any] = "",
+) -> tk.Checkbutton:
     """Create a dark-mode checkbutton."""
     c = STYLE.colors
     return tk.Checkbutton(
@@ -71,29 +79,11 @@ def make_radiobutton(parent: tk.Misc, *, text: str, variable: tk.Variable, value
     )
 
 
-def make_entry(parent: tk.Misc, *, textvariable: tk.StringVar) -> tk.Entry:
-    """Create a compact dark input field."""
-    c = STYLE.colors
-    return tk.Entry(
-        parent,
-        textvariable=textvariable,
-        bg=c.field_bg,
-        fg=c.text_primary,
-        insertbackground=c.text_primary,
-        disabledbackground=c.field_disabled_bg,
-        disabledforeground=c.text_quaternary,
-        relief=tk.FLAT,
-        highlightthickness=1,
-        highlightbackground=c.field_border,
-        highlightcolor=c.field_focus_border,
-    )
-
-
-def make_text(parent: tk.Misc, *, height: int = 2, wrap: str = "word") -> tk.Text:
+def make_text(parent: tk.Misc, *, height: int = 1, wrap: Literal["none", "char", "word"] = "word") -> tk.Text:
     """Create a multiline field using the same tokens as compact entries."""
     c = STYLE.colors
     f = STYLE.fonts
-    return tk.Text(
+    widget = tk.Text(
         parent,
         height=height,
         wrap=wrap,
@@ -112,6 +102,8 @@ def make_text(parent: tk.Misc, *, height: int = 2, wrap: str = "word") -> tk.Tex
         pady=5,
         undo=True,
     )
+    bind_auto_height(widget, min_lines=1)
+    return widget
 
 
 def grid_status_options(parent: tk.Misc, options: Iterable[tuple[str, str]], variable: tk.StringVar) -> list[tk.Radiobutton]:

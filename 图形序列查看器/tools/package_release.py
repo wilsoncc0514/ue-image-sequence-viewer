@@ -11,7 +11,18 @@ import tempfile
 import zipfile
 from pathlib import Path
 
-EXCLUDED_DIRS = {"__pycache__", "__MACOSX", ".git", ".venv", "venv", "tests", "tools"}
+EXCLUDED_DIRS = {
+    "__pycache__",
+    "__MACOSX",
+    ".git",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".venv",
+    "venv",
+    "tests",
+    "tools",
+}
 EXCLUDED_SUFFIXES = {".pyc", ".pyo", ".log"}
 EXCLUDED_NAMES = {".DS_Store"}
 EXCLUDED_PATTERNS = ("old_bak.py",)

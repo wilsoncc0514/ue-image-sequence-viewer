@@ -16,11 +16,15 @@ class PerformanceConfigTests(unittest.TestCase):
         self.assertEqual(cfg.preload_worker_count(64), 32)
 
     def test_version_is_exposed(self) -> None:
-        self.assertEqual(AppConfig().version, 'v3.6.1')
+        self.assertEqual(AppConfig().version, "v3.7.0")
 
     def test_invalid_queue_capacity_is_rejected(self) -> None:
         with self.assertRaises(ValueError):
             PerformanceConfig(max_render_result_queue_size=0)
+
+    def test_invalid_file_reveal_polling_interval_is_rejected(self) -> None:
+        with self.assertRaises(ValueError):
+            PerformanceConfig(file_reveal_poll_ms=0)
 
     def test_invalid_safety_limit_is_rejected(self) -> None:
         with self.assertRaises(ValueError):

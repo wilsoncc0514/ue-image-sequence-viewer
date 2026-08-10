@@ -4,6 +4,7 @@ from __future__ import annotations
 import inspect
 import queue
 import unittest
+from typing import Any, cast
 
 from core.render_controller import RenderControllerMixin
 
@@ -22,8 +23,8 @@ class RenderThreadingTests(unittest.TestCase):
         controller = object.__new__(RenderControllerMixin)
         controller._closed = False
         controller.render_result_queue = queue.Queue(maxsize=1)
-        controller.render_result_queue.put_nowait((1, 1, 1, 1, 1, "old", None))
-        controller._schedule_render_finish(2, 2, 2, 2, 2, "new", None)
+        controller.render_result_queue.put_nowait((1, 1, 1, 1, 1, cast(Any, "old"), None))
+        controller._schedule_render_finish(2, 2, 2, 2, 2, cast(Any, "new"), None)
         self.assertEqual(controller.render_result_queue.get_nowait()[5], "new")
 
 

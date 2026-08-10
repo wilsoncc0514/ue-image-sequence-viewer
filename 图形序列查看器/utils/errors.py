@@ -28,7 +28,10 @@ def report_exception(exc: BaseException, *, title: str='程序错误', show_dial
     logger.error('Unhandled application error', exc_info=(type(exc), exc, exc.__traceback__))
     if show_dialog:
         try:
-            messagebox.showerror(title, f'发生错误：\n{exc}', parent=parent)
+            if parent is None:
+                messagebox.showerror(title, f'发生错误：\n{exc}')
+            else:
+                messagebox.showerror(title, f'发生错误：\n{exc}', parent=parent)
         except Exception:
             logger.error('Failed to show error dialog', exc_info=True)
 

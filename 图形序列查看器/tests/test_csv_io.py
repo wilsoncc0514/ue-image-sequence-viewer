@@ -3,9 +3,11 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+from dataclasses import replace
 from pathlib import Path
-from types import SimpleNamespace
+from unittest.mock import patch
 
+from config.settings import AppConfig, SafetyConfig
 from core.csv_io import CsvIOMixin
 from core.tag_engine import normalize_sub_value
 
@@ -57,7 +59,7 @@ class CsvParseTests(unittest.TestCase):
 class CsvTransactionTests(unittest.TestCase):
     class Dummy(CsvIOMixin):
         def __init__(self) -> None:
-            self.config = SimpleNamespace(safety=SimpleNamespace(max_csv_bytes=4096, max_csv_rows=10))
+            self.config = AppConfig(safety=SafetyConfig(max_csv_bytes=4096, max_csv_rows=10))
             self.is_loading_state = False
             self.tag_data = {"seq01": {"original": True}, "seq02": {"original": True}}
             self.root_folder_name = "root"
@@ -116,8 +118,8 @@ class CsvTransactionTests(unittest.TestCase):
                     raise ValueError("bad row")
                 return original_parser(tag_str, state_dict, tag_defs)
 
-            dummy._parse_and_apply_tags = fail_second
-            self.assertIsNone(dummy.import_csv(path, show_message=False))
+            with patch.object(dummy, "_parse_and_apply_tags", side_effect=fail_second):
+                self.assertIsNone(dummy.import_csv(path, show_message=False))
         self.assertEqual(dummy.tag_data, original)
         self.assertEqual(dummy.qc_by_name, "old")
         self.assertFalse(dummy.is_loading_state)
@@ -138,7 +140,7 @@ class CsvTransactionTests(unittest.TestCase):
 
     def test_row_limit_failure_preserves_existing_state(self) -> None:
         dummy = self.Dummy()
-        dummy.config.safety.max_csv_rows = 1
+        dummy.config = replace(dummy.config, safety=replace(dummy.config.safety, max_csv_rows=1))
         original = dict(dummy.tag_data)
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "too-many.csv"

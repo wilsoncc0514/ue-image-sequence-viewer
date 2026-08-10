@@ -16,8 +16,8 @@ class CustomQCDialog(tk.Toplevel):
     def __init__(self, parent: Any, title: Any, prompt: Any) -> None:
         super().__init__(parent)
         self.title(title)
-        self.result = None
-        self.import_csv_path = None
+        self.result: str | None = None
+        self.import_csv_path: str | None = None
         colors = STYLE.colors
         fonts = STYLE.fonts
 

@@ -10,10 +10,11 @@ from PIL import Image, ImageOps, ImageTk
 from ui.styles import STYLE
 from utils.logger import logger
 
+from core.app_state import AppState
 from core.image_rendering import render_image_to_fit
 
 
-class RenderControllerMixin:
+class RenderControllerMixin(AppState):
 
     def _invalidate_preload(self) -> Any:
         self.preload_seq += 1

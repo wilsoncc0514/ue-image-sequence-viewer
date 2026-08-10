@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import unittest
+from typing import Any, cast
+from unittest.mock import patch
 
 from ui.app import FrameScrubber
 from ui.export_status import ExportState, get_export_presentation
@@ -68,17 +70,19 @@ class ExportStatusUiBridgeTests(unittest.TestCase):
     def test_dirty_marker_updates_label_and_export_button(self) -> None:
         app = FrameScrubber.__new__(FrameScrubber)
         app.csv_exported = True
-        app.lbl_export_status = _FakeWidget()
-        app.btn_export_csv = _FakeWidget()
-        app._has_exportable_tag_data = lambda: True
+        label = _FakeWidget()
+        button = _FakeWidget()
+        app.lbl_export_status = cast(Any, label)
+        app.btn_export_csv = cast(Any, button)
 
-        app._mark_export_dirty()
+        with patch.object(app, "_has_exportable_tag_data", return_value=True):
+            app._mark_export_dirty()
 
         self.assertFalse(app.csv_exported)
-        self.assertEqual(app.lbl_export_status.options["text"], "● 有未导出修改")
-        self.assertEqual(app.lbl_export_status.options["style"], "PanelWarning.TLabel")
-        self.assertEqual(app.btn_export_csv.options["style"], "Primary.TButton")
-        self.assertEqual(app.btn_export_csv.states, ["!disabled"])
+        self.assertEqual(label.options["text"], "● 有未导出修改")
+        self.assertEqual(label.options["style"], "PanelWarning.TLabel")
+        self.assertEqual(button.options["style"], "Primary.TButton")
+        self.assertEqual(button.states, ["!disabled"])
 
 
 if __name__ == "__main__":
