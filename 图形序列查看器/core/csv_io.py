@@ -4,7 +4,6 @@ from __future__ import annotations
 import csv
 import datetime
 import os
-import re
 from dataclasses import dataclass
 from tkinter import filedialog, messagebox
 from typing import Any
@@ -14,7 +13,7 @@ from utils.logger import logger
 from utils.safe_files import atomic_write_text, require_file_size
 
 from core.app_state import AppState
-from core.tag_engine import normalize_sub_value, normalize_tag_name
+from core.tag_codec import encode_note, parse_tag_cell
 
 
 @dataclass(frozen=True)
@@ -52,35 +51,9 @@ class CsvIOMixin(AppState):
         segment parsing instead of naive ``str.find``. This avoids accidental
         matches when a future tag name is a substring of another tag name.
         """
-        if not tag_str:
-            return
-
-        raw_text = str(tag_str).replace("模型衔接地面处异常反光", "漏光")
-        tag_names = [normalize_tag_name(t["name"]) for t in tag_defs]
-        tag_names = sorted(set(tag_names), key=len, reverse=True)
-        if not tag_names:
-            return
-
-        name_pattern = "|".join(re.escape(name) for name in tag_names)
-        # Match: TagName, optional (sub), optional : text up to the ideographic comma separator.
-        pattern = re.compile(rf"(?P<name>{name_pattern})(?P<sub>\([^)]*\))?(?P<text>\s*:\s*[^、]*)?")
-
-        for match in pattern.finditer(raw_text):
-            tag_name = normalize_tag_name(match.group("name"))
-            if tag_name not in state_dict:
-                continue
-            state_dict[tag_name]["check"] = True
-
-            sub_text = match.group("sub") or ""
-            if sub_text:
-                state_dict[tag_name]["sub"] = normalize_sub_value(tag_name, sub_text[1:-1].strip())
-
-            text_part = match.group("text") or ""
-            if text_part:
-                value = re.sub(r"^\s*:\s*", "", text_part).strip()
-                if value.endswith("、"):
-                    value = value[:-1]
-                state_dict[tag_name]["text"] = value.strip()
+        for name, value in parse_tag_cell(str(tag_str or ""), [t["name"] for t in tag_defs]).items():
+            if name in state_dict:
+                state_dict[name].update(value)
 
     def _read_csv_import(self, import_path: Any) -> CsvImportResult:
         """Parse and validate an import without mutating application state."""
@@ -123,7 +96,17 @@ class CsvIOMixin(AppState):
                     status=status_val,
                     rerender="重新渲染" in remark_str,
                 )
-                self._parse_and_apply_tags(light_str, state["light"], self.light_tags_def)
+                # Parse the entire old vocabulary before migrating one tag.
+                # A remark mentioning 漏光 must never become a checked tag.
+                old_light_state = dict(state["light"])
+                old_light_defs = list(self.light_tags_def)
+                if "漏光" in state["comp"]:
+                    old_light_state["漏光"] = dict(state["comp"]["漏光"])
+                    old_light_defs.append({"name": "漏光", "has_sub": False})
+                self._parse_and_apply_tags(light_str, old_light_state, old_light_defs)
+                state["light"].update({k: v for k, v in old_light_state.items() if k in state["light"]})
+                if "漏光" in state["comp"]:
+                    state["comp"]["漏光"] = old_light_state["漏光"]
                 self._parse_and_apply_tags(comp_str, state["comp"], self.comp_tags_def)
                 state = self._normalize_tag_state(state)
                 if not self._is_tag_state_empty(state):
@@ -174,7 +157,7 @@ class CsvIOMixin(AppState):
             if state_dict.get('check') and state_dict.get('sub'):
                 s += f"({state_dict['sub']})"
             if state_dict.get('text'):
-                s += f": {state_dict['text']}"
+                s += f": {encode_note(str(state_dict['text']))}"
             parts.append(s)
         return parts
 

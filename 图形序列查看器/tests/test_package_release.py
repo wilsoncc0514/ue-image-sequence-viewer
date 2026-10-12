@@ -24,12 +24,12 @@ class PackageReleaseTests(unittest.TestCase):
     def test_includes_source_files(self) -> None:
         self.assertTrue(should_include(Path("ui/app.py")))
         self.assertTrue(should_include(Path("README.md")))
-        self.assertTrue(should_include(Path("启动图形序列查看器.command")))
-        self.assertTrue(should_include(Path("启动图形序列查看器.bat")))
+        self.assertTrue(should_include(Path("启动图形序列查看器-Mac.command")))
+        self.assertTrue(should_include(Path("启动图形序列查看器-Windows.bat")))
 
     def test_reads_release_version(self) -> None:
         project_root = Path(__file__).resolve().parents[1]
-        self.assertEqual(read_project_version(project_root), "v3.7.0")
+        self.assertEqual(read_project_version(project_root), "v3.7.1")
 
 
 if __name__ == "__main__":

@@ -69,7 +69,10 @@ def scan_image_folder(
     image_count = 0
     entry_count = 0
 
-    for root_dir, dirs, files in os.walk(root_path, followlinks=False):
+    def report_scan_error(error: OSError) -> None:
+        raise error
+
+    for root_dir, dirs, files in os.walk(root_path, followlinks=False, onerror=report_scan_error):
         if cancel_event is not None and cancel_event.is_set():
             raise ScanCancelled("文件夹扫描已取消")
 

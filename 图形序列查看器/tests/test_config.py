@@ -16,7 +16,7 @@ class PerformanceConfigTests(unittest.TestCase):
         self.assertEqual(cfg.preload_worker_count(64), 32)
 
     def test_version_is_exposed(self) -> None:
-        self.assertEqual(AppConfig().version, "v3.7.0")
+        self.assertEqual(AppConfig().version, "v3.7.1")
 
     def test_invalid_queue_capacity_is_rejected(self) -> None:
         with self.assertRaises(ValueError):

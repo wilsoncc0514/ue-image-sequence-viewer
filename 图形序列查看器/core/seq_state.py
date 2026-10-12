@@ -56,11 +56,23 @@ class SeqStateMixin(AppState):
             status = ''
         rerender = bool(src.get('rerender', False))
         normalized = self._create_empty_tag_state(status=status, rerender=rerender)
-        for section_name, defs in (('light', self.light_tags_def), ('comp', self.comp_tags_def)):
+        normalized_src_sections: dict[str, dict[str, Any]] = {}
+        for section_name in ('light', 'comp'):
             src_section = src.get(section_name, {}) if isinstance(src.get(section_name, {}), dict) else {}
-            normalized_src_section = {}
-            for raw_name, raw_value in src_section.items():
-                normalized_src_section[normalize_tag_name(raw_name)] = raw_value
+            normalized_src_sections[section_name] = {
+                normalize_tag_name(raw_name): raw_value
+                for raw_name, raw_value in src_section.items()
+            }
+
+        # Older states stored 漏光 under light. Prefer an effective current
+        # comp value, otherwise carry that legacy value into its new section.
+        legacy_leak = normalized_src_sections['light'].get('漏光')
+        current_leak = normalized_src_sections['comp'].get('漏光')
+        if self._tag_item_has_effective_value(legacy_leak) and not self._tag_item_has_effective_value(current_leak):
+            normalized_src_sections['comp']['漏光'] = legacy_leak
+
+        for section_name, defs in (('light', self.light_tags_def), ('comp', self.comp_tags_def)):
+            normalized_src_section = normalized_src_sections[section_name]
             for t in defs:
                 name = t['name']
                 raw = normalized_src_section.get(name, {}) if isinstance(normalized_src_section.get(name, {}), dict) else {}
@@ -278,6 +290,13 @@ class SeqStateMixin(AppState):
     def load_tag_state(self, node_id: Any) -> Any:
         self.is_loading_state = True
         rel_path = self.node_metadata.get(node_id)
+        if rel_path != getattr(self, "_loaded_tag_rel_path", None):
+            for variables in (self.tag_vars_light, self.tag_vars_comp):
+                for value in variables.values():
+                    widget = value.get("text_widget")
+                    if widget is not None:
+                        widget.edit_reset()
+        self._loaded_tag_rel_path = rel_path
         if not rel_path or rel_path not in self.tag_data:
             self._reset_tag_vars()
             self.var_status.set('')

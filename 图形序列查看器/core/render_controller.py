@@ -95,6 +95,9 @@ class RenderControllerMixin(AppState):
         return 'break'
 
     def on_global_vertical_key(self, event: Any, step: Any) -> Any:
+        widget = event.widget if event is not None else self.root.focus_get()
+        if self._is_text_input_widget(widget):
+            return None
         if self.root.focus_get() == self.tree:
             return self.on_tree_vertical_key(event, step)
         self.step_group(step)
@@ -273,7 +276,9 @@ class RenderControllerMixin(AppState):
             return
         self._cache_render_misses += 1
         self._update_cache_stats_overlay()
-        self._show_canvas_status('')
+        self.canvas.itemconfig(self.image_on_canvas, image='')
+        self.current_tk_image = None
+        self._show_canvas_status('正在加载图片…')
         self._request_async_render(idx, path, cw, ch, dataset_id)
         self._preload_nearby_frames(idx, cw, ch, dataset_id)
 
@@ -430,6 +435,8 @@ class RenderControllerMixin(AppState):
             return
         if error is not None or img is None:
             path = self.current_filepaths[idx] if 0 <= idx < len(self.current_filepaths) else ''
+            self.canvas.itemconfig(self.image_on_canvas, image='')
+            self.current_tk_image = None
             self._show_canvas_status('图片读取失败', color=STYLE.colors.danger, animate=True)
             if path:
                 self.lbl_filename.config(text=os.path.basename(path))

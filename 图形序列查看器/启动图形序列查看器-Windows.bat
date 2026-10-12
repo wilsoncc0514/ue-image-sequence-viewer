@@ -41,13 +41,14 @@ exit /b 1
 "%PY_CHECK%" %PY_ARGS% -c "import sys, tkinter; from PIL import Image; assert sys.version_info.__ge__((3, 10))" >nul 2>&1
 if errorlevel 1 goto :missing_dependency
 
-if /I "%~1"=="--smoke-test" (
-    "%PY_CHECK%" %PY_ARGS% "%APP_DIR%main.py" %*
-    exit /b %errorlevel%
-)
+if /I "%~1"=="--smoke-test" goto :smoke_test
 
 start "" "%PY_GUI%" %PY_ARGS% "%APP_DIR%main.py" %*
 exit /b 0
+
+:smoke_test
+"%PY_CHECK%" %PY_ARGS% "%APP_DIR%main.py" %*
+exit /b %errorlevel%
 
 :missing_dependency
 set "REQUIREMENTS=%APP_DIR%requirements.txt"

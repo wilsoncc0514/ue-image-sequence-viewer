@@ -92,6 +92,7 @@ class AppState:
     seq_rel_paths: list[str]
     seq_rel_path_set: set[str]
     current_tree_node: str | None
+    _loaded_tag_rel_path: str | None
     _suppress_unmarked_prompt: bool
     _suppress_unmarked_prompt_target: str | None
 

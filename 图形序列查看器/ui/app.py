@@ -56,8 +56,11 @@ class FrameScrubber(TagLogicMixin, SeqStateMixin, CsvIOMixin, RenderControllerMi
     def change_qc_by(self):
         dlg = CustomQCDialog(self.root,"质检人","")
         if dlg.result:
-            self.qc_by_name = dlg.result
-            self.lbl_qc_by.config(text=f"质检人：{self.qc_by_name}")
+            name = dlg.result.strip()
+            if name != self.qc_by_name:
+                self.qc_by_name = name
+                self.lbl_qc_by.config(text=f"质检人：{self.qc_by_name}")
+                self._mark_export_dirty()
 
     def _init_runtime_state(self) -> None:
         """Initialize process-level and document-level runtime state."""
@@ -121,6 +124,7 @@ class FrameScrubber(TagLogicMixin, SeqStateMixin, CsvIOMixin, RenderControllerMi
         self.seq_rel_paths = []
         self.seq_rel_path_set = set()
         self.current_tree_node = None
+        self._loaded_tag_rel_path = None
         self._suppress_unmarked_prompt = False
         self._suppress_unmarked_prompt_target = None
 
@@ -517,6 +521,7 @@ class FrameScrubber(TagLogicMixin, SeqStateMixin, CsvIOMixin, RenderControllerMi
         self.lbl_counter.config(text='0 / 0')
         if reset_tags:
             self.current_tree_node = None
+            self._loaded_tag_rel_path = None
             self.is_loading_state = True
             self.var_status.set('')
             self.var_rerender.set(False)
@@ -682,37 +687,35 @@ class FrameScrubber(TagLogicMixin, SeqStateMixin, CsvIOMixin, RenderControllerMi
             self._restore_load_button()
             messagebox.showerror("加载失败", str(exc), parent=self.root)
             return
-        self._begin_apply_folder_scan(result, context)
+        try:
+            self._begin_apply_folder_scan(result, context)
+        except Exception as exc:
+            logger.error("初始化序列列表失败", exc_info=True)
+            self._show_canvas_status("构建序列列表失败", color=STYLE.colors.danger, animate=True)
+            self._restore_load_button()
+            messagebox.showerror("加载失败", str(exc), parent=self.root)
 
     def _begin_apply_folder_scan(
         self,
         result: FolderScanResult,
         context: tuple[str, str, str | None],
     ) -> None:
-        """Commit a successful scan and build Tk nodes in bounded batches."""
-        folder_path, qc_by_name, _ = context
-        self.qc_by_name = qc_by_name
-        self.root_folder_name = os.path.basename(os.path.normpath(folder_path))
-        self.loaded_folder_path = folder_path
-        self.csv_exported = False
-        self.tree.delete(*self.tree.get_children())
-        self._node_counter = 0
-        self.groups.clear()
-        self.tag_data.clear()
-        self.node_metadata.clear()
-        self.seq_folder_nodes.clear()
-        self.seq_rel_paths.clear()
-        self.seq_rel_path_set.clear()
-        self.clear_view()
-        self._refresh_export_status()
-        self.lbl_qc_by.config(text=f'质检人：{self.qc_by_name or "未填写"}')
-        if hasattr(self, 'lbl_root_folder_name'):
-            self.lbl_root_folder_name.config(text=self.root_folder_name)
-        root_node = self.tree.insert('', 'end', text=self.root_folder_name, open=True)
+        """Build a detached tree without replacing the current document."""
+        folder_path, _, _ = context
+        old_roots = self.tree.get_children()
+        root_node = self.tree.insert('', 'end', text=os.path.basename(os.path.normpath(folder_path)), open=True)
+        self.tree.detach(root_node)
         self._scan_apply_state = {
             "result": result,
             "context": context,
+            "old_roots": old_roots,
+            "root_node": root_node,
             "folder_nodes": {result.root_path: root_node},
+            "groups": {},
+            "tag_data": {},
+            "node_metadata": {},
+            "seq_folder_nodes": set(),
+            "seq_rel_paths": [],
             "directory_index": 0,
             "group_index": 0,
             "current_node": None,
@@ -727,6 +730,8 @@ class FrameScrubber(TagLogicMixin, SeqStateMixin, CsvIOMixin, RenderControllerMi
             self._apply_folder_scan_batch()
         except Exception as exc:
             logger.error("构建序列列表失败", exc_info=True)
+            if self._scan_apply_state is not None:
+                self.tree.delete(self._scan_apply_state["root_node"])
             self._scan_apply_state = None
             self._show_canvas_status("构建序列列表失败", color=STYLE.colors.danger, animate=True)
             self._restore_load_button()
@@ -754,19 +759,17 @@ class FrameScrubber(TagLogicMixin, SeqStateMixin, CsvIOMixin, RenderControllerMi
                 budget -= 1
                 if scanned.groups:
                     rel = scanned.rel_path
-                    self.seq_folder_nodes.add(seq_node)
-                    self.node_metadata[seq_node] = rel
-                    if rel not in self.seq_rel_path_set:
-                        self.seq_rel_path_set.add(rel)
-                        self.seq_rel_paths.append(rel)
-                    self.tag_data.setdefault(rel, self._create_empty_tag_state())
+                    state["seq_folder_nodes"].add(seq_node)
+                    state["node_metadata"][seq_node] = rel
+                    state["seq_rel_paths"].append(rel)
+                    state["tag_data"][rel] = self._create_empty_tag_state()
 
             while budget > 0 and state["group_index"] < len(scanned.groups):
                 prefix, paths = scanned.groups[state["group_index"]]
                 uid = self._new_tree_iid()
                 self.tree.insert(state["current_node"], "end", text=prefix, iid=uid)
-                self.groups[uid] = list(paths)
-                self.node_metadata[uid] = scanned.rel_path
+                state["groups"][uid] = list(paths)
+                state["node_metadata"][uid] = scanned.rel_path
                 state["group_index"] += 1
                 budget -= 1
 
@@ -778,8 +781,41 @@ class FrameScrubber(TagLogicMixin, SeqStateMixin, CsvIOMixin, RenderControllerMi
         if state["directory_index"] < len(result.directories):
             self.root.after_idle(self._apply_folder_scan_batch_guarded)
             return
-        _, _, pending_import_csv_path = state["context"]
+        if self.current_tree_node:
+            self.save_tag_state(self.current_tree_node)
+        if self._should_prompt_export_on_close():
+            choice = messagebox.askyesnocancel(
+                "切换文件夹前导出 CSV",
+                "当前质检数据尚未导出。是否先导出？\n\n是：导出后切换\n否：放弃当前数据并切换\n取消：保留当前文件夹",
+                parent=self.root,
+            )
+            if choice is None or (choice and not self.export_csv()):
+                self.tree.delete(state["root_node"])
+                self._scan_apply_state = None
+                self._show_canvas_status("已取消切换文件夹", animate=True)
+                self._restore_load_button()
+                return
+
+        # All scan/build work and the save decision succeeded. Attach the new
+        # tree and replace state in one Tk callback; old data survived up to here.
+        self.tree.move(state["root_node"], "", "end")
+        self.tree.delete(*state["old_roots"])
+        folder_path, qc_by_name, pending_import_csv_path = state["context"]
+        self.qc_by_name = qc_by_name
+        self.root_folder_name = os.path.basename(os.path.normpath(folder_path))
+        self.loaded_folder_path = folder_path
+        self.groups = state["groups"]
+        self.tag_data = state["tag_data"]
+        self.node_metadata = state["node_metadata"]
+        self.seq_folder_nodes = state["seq_folder_nodes"]
+        self.seq_rel_paths = state["seq_rel_paths"]
+        self.seq_rel_path_set = set(self.seq_rel_paths)
+        self.csv_exported = False
         self._scan_apply_state = None
+        self.clear_view()
+        self._refresh_export_status()
+        self.lbl_qc_by.config(text=f'质检人：{self.qc_by_name or "未填写"}')
+        self.lbl_root_folder_name.config(text=self.root_folder_name)
         self._adjust_sidebar_width()
         if result.image_count == 0:
             self._show_canvas_status('未找到图片', color=STYLE.colors.warning, animate=True)

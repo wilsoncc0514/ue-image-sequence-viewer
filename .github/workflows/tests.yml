@@ -31,6 +31,13 @@ jobs:
       - name: Run unit tests
         working-directory: 图形序列查看器
         run: python -m unittest discover -s tests -v
+      - name: Install virtual display
+        if: matrix.python-version == '3.14'
+        run: sudo apt-get update && sudo apt-get install -y xvfb python3-tk
+      - name: Run real Tk regressions
+        if: matrix.python-version == '3.14'
+        working-directory: 图形序列查看器
+        run: xvfb-run -a env RUN_GUI_TESTS=1 python -m unittest tests.test_gui_integrity tests.test_gui_motion tests.test_gui_smoke -v
 
   windows-smoke:
     runs-on: windows-latest
@@ -47,8 +54,10 @@ jobs:
         run: ruff check .
       - name: Run unit tests
         working-directory: 图形序列查看器
+        env:
+          RUN_GUI_TESTS: "1"
         run: python -m unittest discover -s tests -v
       - name: Verify Windows launcher and Tk startup
         working-directory: 图形序列查看器
         shell: cmd
-        run: call "启动图形序列查看器.bat" --smoke-test
+        run: call "启动图形序列查看器-Windows.bat" --smoke-test
