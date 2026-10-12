@@ -90,5 +90,5 @@ if __name__ == "__main__":
         root,
         root.parent / f"{release_name}.zip",
         archive_root_name=release_name,
-        extra_files=(root.parent / "LICENSE", root.parent / "requirements.txt"),
+        extra_files=tuple(root.parent / name for name in ("LICENSE", "requirements.txt", "CHANGELOG.md", "版本迭代更新说明.txt")),
     )

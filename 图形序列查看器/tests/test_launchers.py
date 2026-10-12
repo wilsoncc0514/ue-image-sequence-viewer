@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 import os
+import shutil
+import subprocess
+import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -11,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class LauncherTests(unittest.TestCase):
     def test_macos_launcher_is_portable_and_executable(self) -> None:
-        path = ROOT / "启动图形序列查看器.command"
+        path = ROOT / "启动图形序列查看器-Mac.command"
         launcher = path.read_text(encoding="utf-8")
 
         self.assertIn("${0:A:h}", launcher)
@@ -21,7 +25,7 @@ class LauncherTests(unittest.TestCase):
         self.assertTrue(os.access(path, os.X_OK))
 
     def test_windows_launcher_uses_gui_python_and_forwards_arguments(self) -> None:
-        launcher = (ROOT / "启动图形序列查看器.bat").read_text(encoding="utf-8")
+        launcher = (ROOT / "启动图形序列查看器-Windows.bat").read_text(encoding="utf-8")
 
         self.assertIn("%~dp0", launcher)
         self.assertIn(r".venv\Scripts\pythonw.exe", launcher)
@@ -39,7 +43,20 @@ class LauncherTests(unittest.TestCase):
         self.assertIn("mypy", linux_job)
         self.assertNotIn("mypy", windows_job)
         self.assertIn("runs-on: windows-latest", windows_job)
-        self.assertIn('call "启动图形序列查看器.bat" --smoke-test', windows_job)
+        self.assertIn('call "启动图形序列查看器-Windows.bat" --smoke-test', windows_job)
+
+    def test_ambiguous_legacy_launcher_names_are_removed(self) -> None:
+        self.assertFalse((ROOT / "启动图形序列查看器.command").exists())
+        self.assertFalse((ROOT / "启动图形序列查看器.bat").exists())
+
+    @unittest.skipUnless(sys.platform == "win32", "requires Windows cmd")
+    def test_windows_smoke_propagates_program_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            launcher = Path(tmp) / "launch.bat"
+            shutil.copyfile(ROOT / "启动图形序列查看器-Windows.bat", launcher)
+            (Path(tmp) / "main.py").write_text("raise SystemExit(7)\n", encoding="utf-8")
+            result = subprocess.run(["cmd", "/c", str(launcher), "--smoke-test"], capture_output=True, timeout=30)
+        self.assertEqual(result.returncode, 7)
 
 
 if __name__ == "__main__":

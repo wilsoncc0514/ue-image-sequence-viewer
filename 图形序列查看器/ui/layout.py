@@ -272,8 +272,14 @@ def build_main_ui(app: Any) -> None:
             def _sync_from_var(*args, tv=tag_vars["text"], w=entry):
                 val = tv.get()
                 if w.get("1.0","end-1c") != val:
+                    # Programmatic document loads are not user edits. Reset
+                    # history so Undo cannot write another sequence's content.
+                    undo = w.cget("undo")
+                    w.configure(undo=False)
                     w.delete("1.0", "end")
                     w.insert("1.0", val)
+                    w.edit_reset()
+                    w.configure(undo=undo)
 
             tag_vars["text"].trace_add("write", _sync_from_var)
             tag_vars["text_widget"] = entry

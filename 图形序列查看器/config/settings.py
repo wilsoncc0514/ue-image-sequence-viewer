@@ -69,7 +69,7 @@ class WindowConfig:
     """Main window metadata and geometry."""
 
     title: str = "图形序列查看器"
-    version: str = "v3.7.0"
+    version: str = "v3.7.1"
     default_geometry: str = "1450x900"
     min_width: int = 1180
     min_height: int = 760

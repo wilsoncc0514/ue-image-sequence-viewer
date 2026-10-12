@@ -8,8 +8,8 @@ from core.tag_logic import TagLogicMixin
 
 
 class Dummy(TagLogicMixin, SeqStateMixin):
-    light_tags_def = [{"name": "漏光", "has_sub": False}, {"name": "光变问题", "has_sub": True, "subs": ["＜30%", "＞30%"]}]
-    comp_tags_def = []
+    light_tags_def = [{"name": "光变问题", "has_sub": True, "subs": ["＜30%", "＞30%"]}]
+    comp_tags_def = [{"name": "漏光", "has_sub": False}]
 
 
 class TagNormalizeRegressionTests(unittest.TestCase):
@@ -23,6 +23,23 @@ class TagNormalizeRegressionTests(unittest.TestCase):
         d = Dummy()
         data = {"status": "", "rerender": False, "light": {"漏光": {"check": False, "text": "", "sub": None}}, "comp": {}}
         self.assertTrue(d._is_tag_state_empty(data))
+
+    def test_normalize_state_moves_legacy_light_leak_to_composition(self) -> None:
+        d = Dummy()
+        data = {
+            "status": "不合格",
+            "rerender": True,
+            "light": {"漏光": {"check": True, "text": "地面边缘", "sub": None}},
+            "comp": {},
+        }
+
+        normalized = d._normalize_tag_state(data)
+
+        self.assertNotIn("漏光", normalized["light"])
+        self.assertEqual(
+            normalized["comp"]["漏光"],
+            {"check": True, "text": "地面边缘", "sub": None},
+        )
 
 
 if __name__ == "__main__":

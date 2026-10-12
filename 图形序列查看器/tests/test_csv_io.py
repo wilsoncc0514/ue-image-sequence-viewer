@@ -1,6 +1,7 @@
 """CSV tag parsing tests."""
 from __future__ import annotations
 
+import csv
 import tempfile
 import unittest
 from dataclasses import replace
@@ -66,7 +67,7 @@ class CsvTransactionTests(unittest.TestCase):
             self.qc_by_name = "old"
             self.current_tree_node = None
             self.light_tags_def = [{"name": "反光", "has_sub": False}]
-            self.comp_tags_def = []
+            self.comp_tags_def = [{"name": "漏光", "has_sub": False}]
 
         @staticmethod
         def _normalize_seq(value):
@@ -77,7 +78,7 @@ class CsvTransactionTests(unittest.TestCase):
                 "status": status,
                 "rerender": rerender,
                 "light": {"反光": {"check": False, "text": "", "sub": None}},
-                "comp": {},
+                "comp": {"漏光": {"check": False, "text": "", "sub": None}},
             }
 
         @staticmethod
@@ -87,8 +88,13 @@ class CsvTransactionTests(unittest.TestCase):
         @staticmethod
         def _is_tag_state_empty(state):
             return not state.get("status") and not state.get("rerender") and not any(
-                value.get("check") for value in state.get("light", {}).values()
+                value.get("check")
+                for section in ("light", "comp")
+                for value in state.get(section, {}).values()
             )
+
+        def _effective_seq_rel_paths(self):
+            return list(self.tag_data)
 
         def _mark_export_dirty(self):
             pass
@@ -150,6 +156,34 @@ class CsvTransactionTests(unittest.TestCase):
             )
             self.assertIsNone(dummy.import_csv(path, show_message=False))
         self.assertEqual(dummy.tag_data, original)
+
+    def test_legacy_light_column_moves_leak_to_composition(self) -> None:
+        dummy = self.Dummy()
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "legacy.csv"
+            path.write_text(
+                "seq,状态（合格/不合格/待定）,光影问题,构图问题\nseq01,不合格,漏光,\n",
+                encoding="utf-8-sig",
+            )
+            dummy.import_csv(path, show_message=False)
+
+        self.assertNotIn("漏光", dummy.tag_data["seq01"]["light"])
+        self.assertTrue(dummy.tag_data["seq01"]["comp"]["漏光"]["check"])
+
+    def test_export_writes_leak_to_composition_column(self) -> None:
+        dummy = self.Dummy()
+        dummy.tag_data = {
+            "seq01": dummy._create_empty_tag_state(status="不合格", rerender=True),
+        }
+        dummy.tag_data["seq01"]["comp"]["漏光"]["check"] = True
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "export.csv"
+            dummy._write_export_csv(path)
+            with path.open(encoding="utf-8-sig", newline="") as csvfile:
+                rows = list(csv.DictReader(csvfile))
+
+        self.assertEqual(rows[0]["光影问题"], "")
+        self.assertEqual(rows[0]["构图问题"], "漏光")
 
 
 if __name__ == "__main__":
